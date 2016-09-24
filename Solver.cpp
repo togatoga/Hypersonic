@@ -53,7 +53,7 @@ public:
     int turn = 0;
     while (true){
       cerr << "turn = " << turn << endl;
-      InputInfo input_info = input();
+      StateInfo input_info = input();
       think(input_info);
     }
   }
@@ -74,7 +74,7 @@ private:
       explosion_turn--;
     }
   };
-  
+
   struct PlayerInfo{
 
     int x,y;
@@ -90,17 +90,16 @@ private:
       return remain_bomb_cnt;
     }
   };
-  struct InputInfo{
-
+  struct StateInfo{
     int board[BOARD_HEIGHT][BOARD_WIDTH];
     vector<Bomb> Bombs;
     PlayerInfo my_info,enemy_info;
-    InputInfo(){}
+    StateInfo(){}
   };
 
   
-  InputInfo input(){
-    InputInfo res;
+  StateInfo input(){
+    StateInfo res;
     for (int i = 0; i < BOARD_HEIGHT; i++){
       string row;
       for (int j = 0; j < BOARD_WIDTH; j++){
@@ -140,7 +139,7 @@ private:
   }
 
   int8_t my_id;
-  void think(const InputInfo& InputInfo){
+  void think(const StateInfo& StateInfo){
     
   }
   
