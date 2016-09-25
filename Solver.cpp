@@ -52,21 +52,21 @@ class Solver {
 
 public:
   Solver() {}
-  void solve(bool debug=false) {
+  void solve() {
     int width, height, myid;
     cin >> width >> height >> myid;
 
     assert(width == BOARD_WIDTH and height == BOARD_HEIGHT);
     cin.ignore();
     my_id = myid;
-    // cerr << static_cast<int>(my_id) << endl;
+
     int turn = 0;
     while (true) {
+
       StateInfo input_info = input(true);
+      if (my_id == -1)break;
       think(input_info);
-      if (debug){
-	break;
-      }
+
     }
   }
 
@@ -187,7 +187,10 @@ private:
     cerr << "----------------------------Input Start------------------------------" << endl;
     for (int i = 0; i < BOARD_HEIGHT; i++) {
       string row;
-      cin >> row;
+      if(!(cin >> row)){
+	my_id = -1;
+	return StateInfo();
+      }
       if (verbose){
 	cerr << row << endl;
       }
@@ -317,8 +320,8 @@ private:
     const int px = search_state.state.my_info.x;
     const int py = search_state.state.my_info.y;
     const int range = search_state.state.my_info.explosion_range;
-    score += 20 * (search_state.my_destroied_box_cnt - pre_state.my_destroied_box_cnt);
-    score += 8 * (search_state.my_future_destroied_box_cnt - pre_state.my_future_destroied_box_cnt);
+    score += 6 * (search_state.my_destroied_box_cnt - pre_state.my_destroied_box_cnt);
+    score += 4 * (search_state.my_future_destroied_box_cnt - pre_state.my_future_destroied_box_cnt);
     //score += (search_state.state.my_info.remain_bomb_cnt - pre_state.state.my_info.remain_bomb_cnt);
     //score -= search_state.state.my_info.get_remain_bomb_cnt();
     // int near_box_cnt = 0;
@@ -342,18 +345,23 @@ private:
     // }
     // score += near_box_cnt;
     
-    score *= 10;
+    score *= 100;
     int sum_man_dist = 0;
+    int min_dist = (BOARD_HEIGHT + BOARD_WIDTH + 1);
+    int active_boxes_cnt = 0;
     for (int y = 0; y < BOARD_HEIGHT; y++){
       for (int x = 0; x < BOARD_WIDTH; x++){
     	if (search_state.state.board[y][x] == BOX_CELL){
 	  if (search_state.state.future_destroied_boxes.count(make_pair(y, x)) > 0)continue;
-    	  sum_man_dist += (BOARD_HEIGHT + BOARD_WIDTH) - (abs(px - x) + abs(py - y));
+	  int dist = abs(px - x) + abs(py - y);
+	  active_boxes_cnt++;
+	  min_dist = min(min_dist, dist);
+    	  sum_man_dist += dist;
     	}
       }
     }
-    score += sum_man_dist;
-
+    score += 12 *((BOARD_HEIGHT + BOARD_WIDTH) - min_dist);
+    score += (BOARD_HEIGHT + BOARD_WIDTH) * (active_boxes_cnt) - sum_man_dist;
 
 
 
@@ -366,8 +374,8 @@ private:
     const int py = state.state.my_info.y;
 
     for (int k = 0; k < 5; k++){
-      int ny = px + DY[k];
-      int nx = py + DX[k];
+      int nx = px + DX[k];
+      int ny = py + DY[k];
       if (not in_board(ny, nx))continue;
       if (state.state.board[ny][nx] == BOX_CELL)continue;
       SearchState next_state = state;
@@ -515,5 +523,5 @@ int main() {
   cin.tie(0);
   ios::sync_with_stdio(false);
   Solver solver;
-  solver.solve(false);
+  solver.solve();
 }
