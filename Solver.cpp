@@ -3,6 +3,8 @@
 #include <sys/time.h>
 #include <set>
 #include <vector>
+#include <algorithm>
+
 
 using namespace std;
 
@@ -40,6 +42,9 @@ namespace EntityType{
   const int8_t PLAYER = 0;
   const int8_t BOMB = 1;
 }
+
+
+
 class Solver{
   
 public:
@@ -80,6 +85,8 @@ private:
     int x,y;
     int remain_bomb_cnt;
     int explosion_range;
+    //Todo
+    //int life;
     PlayerInfo(){}
     PlayerInfo(int y, int x, int remain_bomb_cnt, int explosion_range):y(y),x(x),remain_bomb_cnt(remain_bomb_cnt),explosion_range(explosion_range){}
     
@@ -96,8 +103,34 @@ private:
     PlayerInfo my_info,enemy_info;
     StateInfo(){}
   };
+  struct Act{
+    int y,x;
+    int act_id;
+    Act(){
+      y = -1;
+      x = -1;
+      act_id = -1;
+    }
+    Act(int y, int x, int act_id):y(y),x(x),act_id(act_id){}
+  };
 
   
+  struct SearchState{
+    StateInfo state;
+    Act first_act;
+    int destory_box_cnt;
+    double score;
+    bool operator< (const SearchState &right) const {
+      return score < right.score;
+    }
+    SearchState(){
+      destory_box_cnt = 0;
+      score = 0;
+    }
+  };
+  void calc_score(SearchState &search_state){
+    
+  }
   StateInfo input(){
     StateInfo res;
     for (int i = 0; i < BOARD_HEIGHT; i++){
@@ -137,9 +170,25 @@ private:
     }
     return res;
   }
-
+  
   int8_t my_id;
-  void think(const StateInfo& StateInfo){
+  void think(const StateInfo& init_info){
+    const int beam_width = 10;
+    const int depth_limit = 5;
+    vector<SearchState> curr_search_state[depth_limit];
+    SearchState init_search_state;
+    init_search_state.state = init_info;
+    curr_search_state[0].emplace_back(init_search_state);
+    for (int turn = 0; turn < depth_limit; turn++){
+      for (int i = 0; i < curr_search_state[turn].size(); i++){
+	if (curr_search_state[turn].size() > beam_width){
+	  sort(curr_search_state[turn].rbegin(), curr_search_state[turn].rend());
+	  curr_search_state[turn].resize(beam_width);
+	}
+
+	
+      }
+    }
     
   }
   
