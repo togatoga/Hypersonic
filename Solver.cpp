@@ -6,7 +6,7 @@
 #include <vector>
 #include <tuple>
 #include <queue>
-
+#include <map>
 using namespace std;
 
 /*
@@ -86,11 +86,19 @@ private:
       explosion_turn--;
     }
     bool operator<(const Bomb &right) const {
+      if (owner != right.owner){
+	return owner < right.owner;
+      }
       if (y != right.y) {
         return y < right.y;
-      } else {
-        return x < right.x;
       }
+      if (x != right.x){
+	return x < right.x;
+      }
+      if (explosion_turn != right.explosion_turn){
+	return explosion_turn < right.explosion_turn;
+      }
+      return explosion_range < right.explosion_range;
     }
   };
 
@@ -107,11 +115,26 @@ private:
 
     bool can_set_bomb() { return remain_bomb_cnt >= 1; }
     int get_remain_bomb_cnt() const { return remain_bomb_cnt; }
+
+    bool operator < (const PlayerInfo &right) const {
+      if (y != right.y) {
+        return y < right.y;
+      }
+      if (x != right.x){
+	return x < right.x;
+      }
+      if (remain_bomb_cnt != right.remain_bomb_cnt){
+	return remain_bomb_cnt < right.remain_bomb_cnt;
+      }
+      return explosion_range < right.explosion_range;
+    }
+    
   };
   struct StateInfo {
     int board[BOARD_HEIGHT][BOARD_WIDTH];
+    set<pair<int, int>> boxes;
     vector<Bomb> bombs;
-    //set<pair<int, int>> future_destroied_boxes;
+    set<pair<int, int>> future_destroied_boxes;
     PlayerInfo my_info, enemy_info;
     StateInfo() {}
   };
@@ -127,28 +150,27 @@ private:
     bool operator<(const Act &right) const {
       if (y != right.y) {
         return y < right.y;
-      } else {
-	if (x != right.x){
-	  return x < right.x;
-	}else{
-	  return act_id < right.act_id;
-	}
       }
+      if (x != right.x){
+	return x < right.x;
+      }
+      return act_id < right.act_id;
     }
+
   };
 
   struct SearchState {
     StateInfo state;
     Act first_act;
-    int my_destoried_box_cnt;
-    int my_future_destoried_box_cnt;
+    int my_destroied_box_cnt;
+    int my_future_destroied_box_cnt;
     double score;
     bool operator<(const SearchState &right) const {
       return score < right.score;
     }
     SearchState() {
-      my_destoried_box_cnt = 0;
-      my_future_destoried_box_cnt = 0;
+      my_destroied_box_cnt = 0;
+      my_future_destroied_box_cnt = 0;
       score = 0;
     }
   };
@@ -169,12 +191,12 @@ private:
       if (verbose){
 	cerr << row << endl;
       }
-      
       for (int j = 0; j < BOARD_WIDTH; j++) {
         if (row[j] == '.') { // empty
           res.board[i][j] = EMPTY_CELL;
         } else if (row[j] == '0') { // box
           res.board[i][j] = BOX_CELL;
+	  res.boxes.emplace(make_pair(i, j));
         }
       }
     }
@@ -214,12 +236,13 @@ private:
 	res.board[y][x] = BOMB_CELL;
       }
     }
+    sort(res.bombs.begin(), res.bombs.end());
     // cerr << res.my_info.y << " " << res.my_info.x << endl;
     cerr << "----------------------------Input End------------------------------" << endl;
     return res;
   }
   int my_id;
-  void simulate_bomb_explosion(SearchState &state) {
+  void simulate_bomb_explosion(SearchState &state, int turn) {
     vector<Bomb> &bombs = state.state.bombs;
     set<pair<int, int>> is_bombs;
     for (int i = 0; i < bombs.size(); i++) {
@@ -239,7 +262,6 @@ private:
 	assert(range == 3);
 	state.state.board[py][px] = EMPTY_CELL;
 	if (owner == my_id){//me
-
 	  state.state.my_info.remain_bomb_cnt++;
 	}else{//enemy
 	  state.state.enemy_info.remain_bomb_cnt++;
@@ -260,9 +282,10 @@ private:
             if (state.state.board[ny][nx] == BOX_CELL) { // exsit box
               // destory
               if (owner == my_id) {
-		// cerr << py << " " << px << " " << owner << " " << ny << " " << nx << endl;
+		// cerr << "turn = " << turn << endl;
+	        // cerr << py << " " << px << " " << " " << ny << " " << nx << endl;
 		// cerr << d << " " << k << endl;
-                state.my_destoried_box_cnt += 1;
+                state.my_destroied_box_cnt += 1;
                 destroyed_boxes.emplace(make_pair(ny, nx));
               }
               break;
@@ -276,6 +299,7 @@ private:
       x = val.second;
       y = val.first;
       state.state.board[y][x] = EMPTY_CELL;
+      state.state.boxes.erase(make_pair(y, x));
     }
     vector<Bomb> next_bombs;
     for (int i = 0; i < bombs.size(); i++) {
@@ -284,14 +308,15 @@ private:
       }
     }
     bombs = next_bombs;
+    sort(next_bombs.begin(), next_bombs.end());
     //cerr << bombs.size() << endl;
   }
 
   double calc_score(const SearchState& pre_state, const SearchState &search_state) {
     double score = pre_state.score;
-    score += 20 * (search_state.my_destoried_box_cnt - pre_state.my_destoried_box_cnt);
-    score += 8 * (search_state.my_future_destoried_box_cnt - pre_state.my_future_destoried_box_cnt);
-    score += (search_state.state.my_info.remain_bomb_cnt - pre_state.state.my_info.remain_bomb_cnt);
+    score += 20 * (search_state.my_destroied_box_cnt - pre_state.my_destroied_box_cnt);
+    score += 8 * (search_state.my_future_destroied_box_cnt - pre_state.my_future_destroied_box_cnt);
+    //score += (search_state.state.my_info.remain_bomb_cnt - pre_state.state.my_info.remain_bomb_cnt);
     //score -= search_state.state.my_info.get_remain_bomb_cnt();
     score *= 50;
     // int sum_man_dist = 0;
@@ -324,8 +349,8 @@ private:
 	next_state.first_act = Act(ny, nx, ACT_MOVE);
       }
       next_state.score = calc_score(state, next_state);
-      
       search_states.emplace(next_state);
+      //visited.emplace(make_tuple(next_state.state.my_info, next_state.state.enemy_info, next_state.state.boxes, next_state.state.bombs));
     }
   }
   void simulate_next_set_bomb(const SearchState &state, priority_queue<SearchState> &search_states, const int &turn){
@@ -342,9 +367,11 @@ private:
 	ny = py + d * DY[k];
 	if (not in_board(ny,nx))break;
 	if (next_state.state.board[ny][nx] == BOX_CELL){
+	  if (next_state.state.future_destroied_boxes.count(make_pair(ny, nx)) > 0)continue;
 	  // destory
 	  //cerr << py << " " << px << " " << ny << " " << nx << endl;
-	  next_state.my_future_destoried_box_cnt += 1;
+	  next_state.my_future_destroied_box_cnt += 1;
+	  next_state.state.future_destroied_boxes.emplace(make_pair(ny, nx));
 	  break;
 	}
       }
@@ -357,6 +384,8 @@ private:
     }
     next_state.score = calc_score(state, next_state);
     search_states.emplace(next_state);
+    //visited.emplace(make_tuple(next_state.state.my_info, next_state.state.enemy_info, next_state.state.boxes, next_state.state.bombs));
+    //visited.emplace(next_state.state);
   }
   void output_act(const Act& act){
     int y,x;
@@ -381,17 +410,30 @@ private:
     }
     //cerr << "turn = "<< turn << " " << "ACT_BOMB = " << cnt << endl;
   }
-
+  void count_duplicated_first_ACT(priority_queue<SearchState> curr_search_states, int turn){
+    map<Act, int> count;
+    while (not curr_search_states.empty()){
+      SearchState state = curr_search_states.top();
+      curr_search_states.pop();
+      count[state.first_act]++;
+    }
+    cerr << "---turn = " << turn << endl;
+    for (const auto &val : count){
+      cerr << val.first.y << " "<< val.first.x<< " " << val.first.act_id << " "  << val.second << endl;
+    }
+    cerr << "--------------------------------" << endl;
+  }
   void think(const StateInfo &init_info) {
     // cerr << "--think--" << endl;
     //cerr << init_info.board[0][0] << endl;
       
     Timer timer;
     timer.start();
-    const int beam_width = 50;
-    const int depth_limit = 16;
+    const int beam_width = 30;
+    const int depth_limit = 10;
     priority_queue<SearchState> curr_search_states[depth_limit + 1];
-
+    set<tuple<PlayerInfo, PlayerInfo, set<pair<int, int>>, vector<Bomb>>>  visited[depth_limit + 1];
+    
     SearchState init_search_state;
     init_search_state.state = init_info;
     // cerr << init_info.my_info.y << " " << init_info.my_info.x << endl;
@@ -404,30 +446,38 @@ private:
     while (timer.get_mill_duration() <= 90){
       chokudi_iter++;
       for (int turn = 0; turn < depth_limit; turn++) {
+	count_duplicated_first_ACT(curr_search_states[turn], turn);
 	//count_ACT_BOMB(curr_search_states[turn], turn);
 	//cerr << curr_search_states[turn].size() << endl;
-	//check_ACT_BOMB(curr_search_states[turn], turn);
+	//int prune_cnt = 0;
 	for (int iter = 0; iter < beam_width and (not curr_search_states[turn].empty()); iter++) {
 	  if (timer.get_mill_duration() >= 90)goto END;
 	  SearchState curr_search_state = curr_search_states[turn].top();
 	  curr_search_states[turn].pop();
+	  auto key = make_tuple(curr_search_state.state.my_info, curr_search_state.state.enemy_info, curr_search_state.state.boxes, curr_search_state.state.bombs);
+	  if (visited[turn].count(key) > 0){
+	    iter--;
+	    //prune_cnt++;
+	    continue;
+	  }
+	  visited[turn].emplace(key);
 	  //simulate bomb
-	  simulate_bomb_explosion(curr_search_state);
-	
+	  simulate_bomb_explosion(curr_search_state, turn);
 	  //next state
 	  // move
-	  simulate_next_move(curr_search_state, curr_search_states[turn + 1], turn);
+	  simulate_next_move(curr_search_state, curr_search_states[turn + 1],  turn);
 	  // set bomb
 	  simulate_next_set_bomb(curr_search_state, curr_search_states[turn + 1], turn);
 	}
+	//cerr << "prune = " << prune_cnt << endl;
       }
-      //break;
+      break;
     }
   END:;
     //cerr << curr_search_states[depth_limit].size() << endl;
     cerr << chokudi_iter++ << endl;
     SearchState best = curr_search_states[depth_limit].top();
-    cerr << best.my_destoried_box_cnt << " " << best.my_future_destoried_box_cnt << " " << best.score << endl;
+    cerr << best.my_destroied_box_cnt << " " << best.my_future_destroied_box_cnt << " " << best.score << endl;
     output_act(best.first_act);
   }
 
@@ -437,5 +487,5 @@ int main() {
   cin.tie(0);
   ios::sync_with_stdio(false);
   Solver solver;
-  solver.solve(true);
+  solver.solve(false);
 }
