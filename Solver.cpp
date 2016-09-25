@@ -316,12 +316,14 @@ private:
   }
 
   double calc_score(const SearchState& pre_state, const SearchState &search_state) {
-    double score = pre_state.score;
+    double score = 0;
     const int px = search_state.state.my_info.x;
     const int py = search_state.state.my_info.y;
     const int range = search_state.state.my_info.explosion_range;
-    score += 6 * (search_state.my_destroied_box_cnt - pre_state.my_destroied_box_cnt);
-    score += 4 * (search_state.my_future_destroied_box_cnt - pre_state.my_future_destroied_box_cnt);
+    //score += 6 * (search_state.my_destroied_box_cnt - pre_state.my_destroied_box_cnt);
+    score += 6 * (search_state.my_destroied_box_cnt);
+    score += 4 * (search_state.my_future_destroied_box_cnt);
+    //score += 4 * (search_state.my_future_destroied_box_cnt - pre_state.my_future_destroied_box_cnt);
     //score += (search_state.state.my_info.remain_bomb_cnt - pre_state.state.my_info.remain_bomb_cnt);
     //score -= search_state.state.my_info.get_remain_bomb_cnt();
     // int near_box_cnt = 0;
