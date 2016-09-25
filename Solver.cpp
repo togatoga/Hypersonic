@@ -314,22 +314,50 @@ private:
 
   double calc_score(const SearchState& pre_state, const SearchState &search_state) {
     double score = pre_state.score;
+    const int px = search_state.state.my_info.x;
+    const int py = search_state.state.my_info.y;
+    const int range = search_state.state.my_info.explosion_range;
     score += 20 * (search_state.my_destroied_box_cnt - pre_state.my_destroied_box_cnt);
     score += 8 * (search_state.my_future_destroied_box_cnt - pre_state.my_future_destroied_box_cnt);
     //score += (search_state.state.my_info.remain_bomb_cnt - pre_state.state.my_info.remain_bomb_cnt);
     //score -= search_state.state.my_info.get_remain_bomb_cnt();
-    score *= 50;
-    // int sum_man_dist = 0;
-    // int px = search_state.state.my_info.x;
-    // int py = search_state.state.my_info.y;
-    // for (int y = 0; y < BOARD_HEIGHT; y++){
-    //   for (int x = 0; x < BOARD_WIDTH; x++){
-    // 	if (search_state.state.board[y][x] == BOX_CELL){
-    // 	  sum_man_dist += abs(px - x) + abs(py - y);
+    // int near_box_cnt = 0;
+    // for (int k = 0; k < 4; k++) {
+    //   for (int d = 0; d < range; d++) {
+    // 	int ny, nx;
+    // 	nx = px + d * DX[k];
+    // 	ny = py + d * DY[k];
+    // 	if (not in_board(ny,nx))break;
+    // 	if (search_state.state.board[ny][nx] == BOX_CELL){
+    // 	  if (search_state.state.future_destroied_boxes.count(make_pair(ny, nx)) > 0)continue;
+    // 	  near_box_cnt++;
+    // 	  break;
+    // 	  // destory
+    // 	  //cerr << py << " " << px << " " << ny << " " << nx << endl;
+    // 	  //next_state.my_future_destroied_box_cnt += 1;
+    // 	  //next_state.state.future_destroied_boxes.emplace(make_pair(ny, nx));
+    // 	  //break;
     // 	}
     //   }
     // }
-    // score -= sum_man_dist;
+    // score += near_box_cnt;
+    
+    score *= 10;
+    int sum_man_dist = 0;
+    for (int y = 0; y < BOARD_HEIGHT; y++){
+      for (int x = 0; x < BOARD_WIDTH; x++){
+    	if (search_state.state.board[y][x] == BOX_CELL){
+	  if (search_state.state.future_destroied_boxes.count(make_pair(y, x)) > 0)continue;
+    	  sum_man_dist += (BOARD_HEIGHT + BOARD_WIDTH) - (abs(px - x) + abs(py - y));
+    	}
+      }
+    }
+    score += sum_man_dist;
+
+
+
+
+    
     
     return score;
   }
@@ -446,7 +474,7 @@ private:
     while (timer.get_mill_duration() <= 90){
       chokudi_iter++;
       for (int turn = 0; turn < depth_limit; turn++) {
-	count_duplicated_first_ACT(curr_search_states[turn], turn);
+	//count_duplicated_first_ACT(curr_search_states[turn], turn);
 	//count_ACT_BOMB(curr_search_states[turn], turn);
 	//cerr << curr_search_states[turn].size() << endl;
 	//int prune_cnt = 0;
@@ -471,7 +499,7 @@ private:
 	}
 	//cerr << "prune = " << prune_cnt << endl;
       }
-      break;
+      //break;
     }
   END:;
     //cerr << curr_search_states[depth_limit].size() << endl;
