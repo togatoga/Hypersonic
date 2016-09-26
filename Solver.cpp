@@ -32,7 +32,7 @@ private:
   }
 };
 
-const int64_t BIT_POW[13] = {1LL,7LL,49LL,343LL, 2401LL, 16807LL,117649LL,823543LL,5764801LL,40353607LL,282475249LL,1977326743LL, 13841287201LL};
+const int64_t BIT_POW[14] = {1,8,64,512,4096,32768,262144,2097152,16777216,134217728,1073741824,8589934592,68719476736,549755813888};
 //7 decimal bit board
 //0 empty cell 
 //1 box cell
@@ -44,11 +44,13 @@ const int64_t BIT_POW[13] = {1LL,7LL,49LL,343LL, 2401LL, 16807LL,117649LL,823543
 namespace CellType{
   const int EMPTY_CELL = 0;
   const int BOX_CELL = 1;
-  const int ITEM_BOMB_RANGE_UP_CELL = 2;
-  const int ITEM_BOX_BOMB_RANGE_UP_CELL = 3;
-  const int ITEM_BOMB_CNT_UP_CELL = 4;
-  const int ITEM_BOX_BOMB_CNT_UP_CELL = 5;
-  const int WALL_CELL = 6;
+  const int BOMB_CELL = 2;
+  const int ITEM_BOMB_RANGE_UP_CELL = 3;
+  const int BOX_ITEM_BOMB_RANGE_UP_CELL = 4;
+  const int ITEM_BOMB_CNT_UP_CELL = 5;
+  const int BOX_ITEM_BOMB_CNT_UP_CELL = 5;
+  const int WALL_CELL = 7;
+
 }
 
 
@@ -64,7 +66,7 @@ public:
   void set(int y, int x, int kind){
     assert(0 <= y and y < 11);
     assert(0 <= x and x < 13);
-    assert(0 <= kind and kind < 7);
+    assert(0 <= kind and kind < 8);
     int64_t bit = (array[y] / BIT_POW[12 - x]) % BIT_POW[1];
     array[y] -= bit * (BIT_POW[12 - x]);
     int64_t kind_bit = kind * BIT_POW[12 - x];
@@ -275,15 +277,13 @@ private:
         } else if (row[j] == '0') { // box
 	  res.board.set(i, j, CellType::BOX_CELL);
         } else if (row[j] == '1') { // item BOMB_RANGE_UP
-	  res.board.set(i, j, CellType::ITEM_BOX_BOMB_RANGE_UP_CELL);//temporary set
+	  res.board.set(i, j, CellType::BOX_ITEM_BOMB_RANGE_UP_CELL);//temporary set
         } else if (row[j] == '2') { // item BOMB_CNT_UP
-	  res.board.set(i, j, CellType::ITEM_BOX_BOMB_CNT_UP_CELL);//temporary set
+	  res.board.set(i, j, CellType::BOX_ITEM_BOMB_CNT_UP_CELL);//temporary set
         }
       }
     }
-    if (verbose){
-      res.board.debug();
-    }
+
     int entities;
     cin >> entities;
     if (verbose) {
@@ -318,15 +318,21 @@ private:
         }
       } else if (entityType == EntityType::BOMB) { // Bomb
         res.bombs.emplace_back(Bomb(y, x, owner, param1, param2));
+	res.board.set(y, x, CellType::BOMB_CELL);
       } else if (entityType == EntityType::ITEM) { // Item
         // pass
 	if (param1 == 1){
-	  res.board.set(y, x, CellType::ITEM_BOX_BOMB_RANGE_UP_CELL);
+	  res.board.set(y, x, CellType::ITEM_BOMB_RANGE_UP_CELL);
 	}else if(param1 == 2){
-	  res.board.set(y, x, CellType::ITEM_BOX_BOMB_CNT_UP_CELL);
+	  res.board.set(y, x, CellType::ITEM_BOMB_CNT_UP_CELL);
 	}
       }
     }
+    if (verbose){
+      res.board.debug();
+    }
+
+    
     sort(res.bombs.begin(), res.bombs.end());
     // cerr << res.my_info.y << " " << res.my_info.x << endl;
     cerr
@@ -407,13 +413,13 @@ private:
             ny = py + d * DY[k];
             if (not in_board(ny, nx))
               break;
-            if (exploded_bombs.count(make_pair(ny, nx)) > 0) { // exsit bombs
+	    int cell_type = state.state.board.get(ny, nx);
+            if (cell_type == CellType::BOMB_CELL) { // exsit bombs
               break;
             }
-	    int cell_type = state.state.board.get(ny, nx);
+
 	    if (cell_type !=CellType::EMPTY_CELL){
-	      
-	      if (cell_type == CellType::BOX_CELL or cell_type == CellType::ITEM_BOX_BOMB_RANGE_UP_CELL or cell_type == CellType::ITEM_BOX_BOMB_CNT_UP_CELL) { // exsit box(contain item box)
+	      if (cell_type == CellType::BOX_CELL or cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL or cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL) { // exsit box(contain item box)
 		// destory
 		if (owner == my_id) {//me
 		  // cerr << "turn = " << turn << endl;
@@ -427,7 +433,7 @@ private:
 		} else {//enemy
 		  //Todo
 		}
-	      }else if(cell_type == CellType::ITEM_BOMB_RANGE_UP_CELL or cell_type == CellType::ITEM_BOX_BOMB_CNT_UP_CELL){//item box
+	      }else if(cell_type == CellType::ITEM_BOMB_RANGE_UP_CELL or cell_type == CellType::ITEM_BOMB_CNT_UP_CELL){//item box
 		destroyed_objects.emplace(make_pair(ny , nx));
 	      }
 	      break;
@@ -441,10 +447,12 @@ private:
       x = val.second;
       y = val.first;
       int cell_type = state.state.board.get(y, x);
-      if (cell_type == CellType::BOX_CELL or cell_type == CellType::ITEM_BOMB_RANGE_UP_CELL or cell_type == CellType::ITEM_BOX_BOMB_CNT_UP_CELL){//EMPTY CELL
+      if (cell_type == CellType::BOX_CELL or cell_type == CellType::ITEM_BOMB_RANGE_UP_CELL or cell_type == CellType::ITEM_BOMB_CNT_UP_CELL){//EMPTY CELL
 	state.state.board.set(y, x, CellType::EMPTY_CELL);
-      }else if(cell_type == CellType::ITEM_BOX_BOMB_RANGE_UP_CELL or cell_type == CellType::ITEM_BOX_BOMB_CNT_UP_CELL){
-	state.state.board.set(y, x, cell_type);
+      }else if(cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL){
+	state.state.board.set(y, x, CellType::ITEM_BOMB_RANGE_UP_CELL);
+      }else if(cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL){
+	state.state.board.set(y, x, CellType::ITEM_BOMB_CNT_UP_CELL);
       }
     }
     vector<Bomb> next_bombs;
@@ -453,6 +461,8 @@ private:
       int y = bombs[i].y;
       if (exploded_bombs.count(make_pair(y, x)) == 0) {//not exploded
         next_bombs.emplace_back(bombs[i]);
+      }else{//exploed
+	state.state.board.set(y, x, CellType::EMPTY_CELL);
       }
     }
     sort(next_bombs.begin(), next_bombs.end());
@@ -469,9 +479,11 @@ private:
     const int range = search_state.state.my_info.explosion_range;
     // score += 6 * (search_state.my_destroied_box_cnt -
     // pre_state.my_destroied_box_cnt);
-    score += 6 * (search_state.my_destroied_box_cnt);
-    score += 4 * (search_state.my_future_destroied_box_cnt);
+    score += 20 * (search_state.my_destroied_box_cnt);
+    score += 10 * (search_state.my_future_destroied_box_cnt);
 
+    score += 10 * search_state.state.my_info.max_bomb_cnt;
+    score += 5 * search_state.state.my_info.explosion_range;
 
     // score += 4 * (search_state.my_future_destroied_box_cnt -
     // pre_state.my_future_destroied_box_cnt);
@@ -503,14 +515,14 @@ private:
     score *= 100;
     score += search_state.state.my_info.explosion_range;
     score += 4 * search_state.state.my_info.max_bomb_cnt;
-    score *= 100;
+
     int sum_man_dist = 0;
     int min_dist = (BOARD_HEIGHT + BOARD_WIDTH + 1);
     int active_boxes_cnt = 0;
     for (int y = 0; y < BOARD_HEIGHT; y++) {
       for (int x = 0; x < BOARD_WIDTH; x++) {
 	int cell_type = search_state.state.board.get(y, x);
-	if (cell_type == CellType::BOX_CELL or cell_type == CellType::ITEM_BOX_BOMB_RANGE_UP_CELL or cell_type == CellType::ITEM_BOX_BOMB_CNT_UP_CELL) {
+	if (cell_type == CellType::BOX_CELL or cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL or cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL) {
           if (search_state.state.future_destroied_boxes.count(make_pair(y, x)) >
               0)
             continue;
@@ -538,7 +550,7 @@ private:
       if (not in_board(ny, nx))
         continue;
       int cell_type = state.state.board.get(ny, nx);
-      if (cell_type == CellType::BOX_CELL or cell_type == CellType::WALL_CELL)
+      if (cell_type == CellType::BOX_CELL or cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL or cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL or cell_type == CellType::WALL_CELL)
         continue;
       SearchState next_state = state;
       if (cell_type == CellType::ITEM_BOMB_RANGE_UP_CELL){
@@ -570,6 +582,10 @@ private:
     const int px = state.state.my_info.x;
     const int py = state.state.my_info.y;
     const int range = state.state.my_info.explosion_range;
+    if (state.state.board.get(py, px) == CellType::BOMB_CELL){//already set bomb
+      return ;
+    }
+
     SearchState next_state = state;
     for (int k = 0; k < 4; k++) {
       for (int d = 0; d < range; d++) {
@@ -579,7 +595,7 @@ private:
         if (not in_board(ny, nx))
           break;
 	int cell_type = next_state.state.board.get(ny , nx);
-        if (cell_type == CellType::BOX_CELL or cell_type == CellType::ITEM_BOX_BOMB_RANGE_UP_CELL or cell_type == CellType::ITEM_BOX_BOMB_CNT_UP_CELL) {
+        if (cell_type == CellType::BOX_CELL or cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL or cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL) {
           if (next_state.state.future_destroied_boxes.count(make_pair(ny, nx)) >
               0)
             continue;
@@ -591,6 +607,7 @@ private:
         }
       }
     }
+    next_state.state.board.set(py, px, CellType::BOMB_CELL);
     next_state.state.bombs.emplace_back(Bomb(py, px, my_id, 8, range));
     next_state.state.my_info.remain_bomb_cnt--;
     //next_state.state.board[py][px] = BOMB_CELL;
@@ -653,7 +670,7 @@ private:
     timer.start();
 
     const int beam_width = 30;
-    const int depth_limit = 10;
+    const int depth_limit = 12;
     priority_queue<SearchState> curr_search_states[depth_limit + 1];
     set<tuple<PlayerInfo, PlayerInfo, BitBoard, vector<Bomb>>>
         visited[depth_limit + 1];
@@ -666,9 +683,9 @@ private:
     curr_search_states[0].emplace(init_search_state);
     Act best_act;
     double best_score = 0.0;
-    int chokudi_iter = 0;
-    while (timer.get_mill_duration() <= 90) {
-      chokudi_iter++;
+    int chokudai_iter = 0;
+    while (timer.get_mill_duration() <= 85) {
+      chokudai_iter++;
       for (int turn = 0; turn < depth_limit; turn++) {
         // count_duplicated_first_ACT(curr_search_states[turn], turn);
         // count_ACT_BOMB(curr_search_states[turn], turn);
@@ -677,7 +694,7 @@ private:
         for (int iter = 0;
              iter < beam_width and (not curr_search_states[turn].empty());
              iter++) {
-          if (timer.get_mill_duration() >= 90)
+          if (timer.get_mill_duration() >= 85)
             goto END;
           SearchState curr_search_state = curr_search_states[turn].top();
           curr_search_states[turn].pop();
@@ -703,14 +720,14 @@ private:
         }
         // cerr << "prune = " << prune_cnt << endl;
       }
-      // break;
+      //break;
     }
   END:;
     // cerr << curr_search_states[depth_limit].size() << endl;
-    cerr << chokudi_iter++ << endl;
+    cerr << chokudai_iter++ << endl;
     SearchState best = curr_search_states[depth_limit].top();
-    cerr << best.my_destroied_box_cnt << " " << best.my_future_destroied_box_cnt
-         << " " << best.score << endl;
+    cerr << best.my_destroied_box_cnt << " " << best.my_future_destroied_box_cnt 
+         << " " << best.state.my_info.max_bomb_cnt << " " << best.state.my_info.explosion_range << " " << best.score << endl;
     output_act(best.first_act);
   }
 };
