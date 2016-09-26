@@ -48,7 +48,7 @@ namespace CellType{
   const int ITEM_BOMB_RANGE_UP_CELL = 3;
   const int BOX_ITEM_BOMB_RANGE_UP_CELL = 4;
   const int ITEM_BOMB_CNT_UP_CELL = 5;
-  const int BOX_ITEM_BOMB_CNT_UP_CELL = 5;
+  const int BOX_ITEM_BOMB_CNT_UP_CELL = 6;
   const int WALL_CELL = 7;
 
 }
@@ -331,8 +331,6 @@ private:
     if (verbose){
       res.board.debug();
     }
-
-    
     sort(res.bombs.begin(), res.bombs.end());
     // cerr << res.my_info.y << " " << res.my_info.x << endl;
     cerr
@@ -554,6 +552,7 @@ private:
         continue;
       SearchState next_state = state;
       if (cell_type == CellType::ITEM_BOMB_RANGE_UP_CELL){
+	//cerr << "unko" << endl;
 	next_state.state.my_info.explosion_range++;
 	next_state.state.board.set(ny, nx, CellType::EMPTY_CELL);
       }else if(cell_type == CellType::ITEM_BOMB_CNT_UP_CELL){
