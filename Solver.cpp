@@ -280,7 +280,9 @@ private:
 	  res.board.set(i, j, CellType::BOX_ITEM_BOMB_RANGE_UP_CELL);//temporary set
         } else if (row[j] == '2') { // item BOMB_CNT_UP
 	  res.board.set(i, j, CellType::BOX_ITEM_BOMB_CNT_UP_CELL);//temporary set
-        }
+        }else if(row[j] == 'X'){
+	  res.board.set(i, j, CellType::WALL_CELL);//temporary set
+	}
       }
     }
 
@@ -390,9 +392,10 @@ private:
     //destroy object
     set<pair<int, int>> destroyed_objects;
     for (int i = 0; i < bombs.size(); i++) {
-      int px = bombs[i].x;
-      int py = bombs[i].y;
+      const int px = bombs[i].x;
+      const int py = bombs[i].y;
       if (exploded_bombs.count(make_pair(py, px)) > 0) {//exploded
+
         int owner = bombs[i].owner;
         int range = bombs[i].explosion_range;
         // assert(owner == 0 or owner == 1 or owner == 2);
@@ -405,29 +408,34 @@ private:
         }
         // right  up left down
         for (int k = 0; k < 4; k++) {
-          for (int d = 0; d < range; d++) {
+          for (int d = 1; d < range; d++) {
             int ny, nx;
             nx = px + d * DX[k];
             ny = py + d * DY[k];
             if (not in_board(ny, nx))
               break;
+	    
 	    int cell_type = state.state.board.get(ny, nx);
-            if (cell_type == CellType::BOMB_CELL) { // exsit bombs
+	    //cerr << py << " " << px << " " << ny << " " << nx << endl;
+	    assert(py != ny or px != nx);
+            if (cell_type == CellType::BOMB_CELL or cell_type == CellType::WALL_CELL) { // exsit bombs
               break;
             }
-
-	    if (cell_type !=CellType::EMPTY_CELL){
+	
+	    if (cell_type != CellType::EMPTY_CELL){
+	      
 	      if (cell_type == CellType::BOX_CELL or cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL or cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL) { // exsit box(contain item box)
-		// destory
+		// destory\
+
 		if (owner == my_id) {//me
 		  // cerr << "turn = " << turn << endl;
 		  // cerr << py << " " << px << " " << " " << ny << " " << nx <<
 		  // endl;
 		  // cerr << d << " " << k << endl;
-		  state.my_destroied_box_cnt += 1;
 
+		  state.my_destroied_box_cnt += 1;
 		  destroyed_objects.emplace(make_pair(ny, nx));
-	  
+		  
 		} else {//enemy
 		  //Todo
 		}
@@ -436,6 +444,7 @@ private:
 	      }
 	      break;
 	    }
+	    
           }
         }
       }
