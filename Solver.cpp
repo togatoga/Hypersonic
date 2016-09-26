@@ -182,12 +182,16 @@ private:
     int max_bomb_cnt;
     int explosion_range;
     // Todo
-    // int life;
-    PlayerInfo() {}
+    int life_point;
+    PlayerInfo() {
+      max_bomb_cnt = 3;
+      life_point = 1;
+    }
     PlayerInfo(int y, int x, int remain_bomb_cnt, int explosion_range)
         : y(y), x(x), remain_bomb_cnt(remain_bomb_cnt),
           explosion_range(explosion_range) {
       max_bomb_cnt = 3;
+      life_point = 1;
     }
 
     bool can_set_bomb() { return remain_bomb_cnt >= 1; }
@@ -199,6 +203,9 @@ private:
       }
       if (x != right.x) {
         return x < right.x;
+      }
+      if (life_point != right.life_point){
+	return life_point < right.life_point;
       }
       if (remain_bomb_cnt != right.remain_bomb_cnt) {
         return remain_bomb_cnt < right.remain_bomb_cnt;
@@ -352,6 +359,7 @@ private:
     exploded_bombs.emplace(make_pair(py, px));
     
     int range = map_explosion_range[make_pair(py, px)];
+    //cerr << range << endl;
     for (int k = 0; k < 4; k++) {
       for (int d = 0; d < range; d++) {
 	int ny, nx;
@@ -359,12 +367,13 @@ private:
 	ny = py + d * DY[k];
 	if (not in_board(ny, nx))
 	  break;
-	if (map_explosion_range.count(make_pair(py, px)) > 0 and exploded_bombs.count(make_pair(py, px)) == 0){//inducing explosion
+	if (map_explosion_range.count(make_pair(ny, nx)) > 0 and exploded_bombs.count(make_pair(ny, nx)) == 0){//inducing explosion
 	  simulate_bomb_inducing_explosion(make_pair(ny, nx), exploded_bombs, map_explosion_range, board);
 	  break;
 	}
 	int cell_type = board.get(ny, nx);
-	if (cell_type != CellType::EMPTY_CELL) { // exsit object
+	if (d != 0 and cell_type != CellType::EMPTY_CELL) { // exsit object
+	  //cerr << d << " " << k << endl;
 	  break;
 	}
       }
@@ -385,11 +394,13 @@ private:
       x = bombs[i].x;
       y = bombs[i].y;
       if (bombs[i].is_explode()){
+	//cerr << y << " " << x << endl;
 	simulate_bomb_inducing_explosion(make_pair(y, x), exploded_bombs, map_explosion_range, state.state.board);
       }
     }
 
     //destroy object
+    //cerr << exploded_bombs.size() << endl;
     set<pair<int, int>> destroyed_objects;
     for (int i = 0; i < bombs.size(); i++) {
       const int px = bombs[i].x;
@@ -407,23 +418,49 @@ private:
           state.state.enemy_info.remain_bomb_cnt++;
         }
         // right  up left down
+	bool damged = false;
         for (int k = 0; k < 4; k++) {
-          for (int d = 1; d < range; d++) {
+          for (int d = 0; d < range; d++) {
             int ny, nx;
             nx = px + d * DX[k];
             ny = py + d * DY[k];
+	    
             if (not in_board(ny, nx))
               break;
-	    
 	    int cell_type = state.state.board.get(ny, nx);
-	    //cerr << py << " " << px << " " << ny << " " << nx << endl;
-	    assert(py != ny or px != nx);
-            if (cell_type == CellType::BOMB_CELL or cell_type == CellType::WALL_CELL) { // exsit bombs
+
+            if ((d != 0 and cell_type == CellType::BOMB_CELL) or cell_type == CellType::WALL_CELL) { // exsit bombs
               break;
             }
-	
-	    if (cell_type != CellType::EMPTY_CELL){
+
+	    {
+	      int player_y,player_x;
+	      player_y = state.state.my_info.y;
+	      player_x = state.state.my_info.x;
+	      //cerr << d << " " << k << endl;
+	      if (owner == my_id){
+		//cerr << py << " " << px << " " << ny << " " << nx << endl;
+		//cerr << player_y << " " << player_x << endl;
+	      }
+
+	      if (not damged and (ny == player_y and nx == player_x)){
+		//cerr << py << " " << px << " " << ny << " " << nx << " " << d << " " << k << endl;
+		state.state.my_info.life_point--;
+		//cerr << state.state.my_info.life_point << endl;
+		//assert(state.state.my_info.life_point == 0);
+		//assert(false);
+		//assert(false);
+		damged = true;
+	      }
 	      
+		// player_y = state.state.enemy_info.y;
+		// player_x = state.state.enemy_info.x;
+		// if (ny == player_y and nx == player_x){
+		//   state.state.enemy_info.life_point--;
+		// }
+	    }
+	    
+	    if (cell_type != CellType::EMPTY_CELL){
 	      if (cell_type == CellType::BOX_CELL or cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL or cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL) { // exsit box(contain item box)
 		// destory\
 
@@ -442,7 +479,11 @@ private:
 	      }else if(cell_type == CellType::ITEM_BOMB_RANGE_UP_CELL or cell_type == CellType::ITEM_BOMB_CNT_UP_CELL){//item box
 		destroyed_objects.emplace(make_pair(ny , nx));
 	      }
-	      break;
+
+	      //cerr << py << " " << px << " " << d << " " << k << endl;
+	      if (d != 0){
+		break;
+	      }
 	    }
 	    
           }
@@ -486,6 +527,15 @@ private:
     const int range = search_state.state.my_info.explosion_range;
     // score += 6 * (search_state.my_destroied_box_cnt -
     // pre_state.my_destroied_box_cnt);
+    
+    //death penalty
+    //cerr << "unko" << endl;
+    if (search_state.state.my_info.life_point <= 0){
+
+      score -= 1e30;
+    }
+    score *= 100;
+    
     score += 20 * (search_state.my_destroied_box_cnt);
     score += 10 * (search_state.my_future_destroied_box_cnt);
 
@@ -559,6 +609,11 @@ private:
       int cell_type = state.state.board.get(ny, nx);
       if (cell_type == CellType::BOX_CELL or cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL or cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL or cell_type == CellType::WALL_CELL)
         continue;
+      if (k != 4){
+	if (cell_type == CellType::BOMB_CELL){
+	  continue;
+	}
+      }
       SearchState next_state = state;
       if (cell_type == CellType::ITEM_BOMB_RANGE_UP_CELL){
 	//cerr << "unko" << endl;
@@ -574,6 +629,7 @@ private:
       if (turn == 0) {
         next_state.first_act = Act(ny, nx, ACT_MOVE);
       }
+      //simulate_bomb_explosion(next_state, turn);
       next_state.score = calc_score(state, next_state);
       search_states.emplace(next_state);
       // visited.emplace(make_tuple(next_state.state.my_info,
@@ -622,6 +678,7 @@ private:
     if (turn == 0) {
       next_state.first_act = Act(py, px, ACT_BOMB);
     }
+    //simulate_bomb_explosion(next_state, turn);
     next_state.score = calc_score(state, next_state);
     search_states.emplace(next_state);
     // visited.emplace(make_tuple(next_state.state.my_info,
@@ -678,7 +735,7 @@ private:
     timer.start();
 
     const int beam_width = 30;
-    const int depth_limit = 12;
+    const int depth_limit = 10;
     priority_queue<SearchState> curr_search_states[depth_limit + 1];
     set<tuple<PlayerInfo, PlayerInfo, BitBoard, vector<Bomb>>>
         visited[depth_limit + 1];
@@ -728,7 +785,7 @@ private:
         }
         // cerr << "prune = " << prune_cnt << endl;
       }
-      //break;
+      break;
     }
   END:;
     // cerr << curr_search_states[depth_limit].size() << endl;
