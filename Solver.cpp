@@ -36,6 +36,25 @@ const int64_t BIT_POW[14] = {1,           8,           64,         512,
                              4096,        32768,       262144,     2097152,
                              16777216,    134217728,   1073741824, 8589934592,
                              68719476736, 549755813888};
+
+
+const int SHIFT_WIDTH[13] = {0, 4, 8, 12, 16 , 20, 24, 28, 32, 36, 40, 44, 48};
+const int64_t WIDTH_BIT[13] = {
+    0b1111,
+    0b11110000,
+    0b111100000000,
+    0b1111000000000000,
+    0b11110000000000000000,
+    0b111100000000000000000000,
+    0b1111000000000000000000000000,
+    0b11110000000000000000000000000000,
+    0b111100000000000000000000000000000000,
+    0b1111000000000000000000000000000000000000,
+    0b11110000000000000000000000000000000000000000,
+    0b111100000000000000000000000000000000000000000000,
+    0b1111000000000000000000000000000000000000000000000000};
+
+
 // 7 decimal bit board
 // 0 empty cell
 // 1 box cell
@@ -48,30 +67,28 @@ namespace CellType {
 const int EMPTY_CELL = 0;
 const int BOX_CELL = 1;
 const int BOMB_CELL = 2;
-const int ITEM_BOMB_RANGE_UP_CELL = 3;
-const int BOX_ITEM_BOMB_RANGE_UP_CELL = 4;
-const int ITEM_BOMB_CNT_UP_CELL = 5;
-const int BOX_ITEM_BOMB_CNT_UP_CELL = 6;
-const int WALL_CELL = 7;
+const int BOMB_EXPLODED = 3;
+const int ITEM_BOMB_RANGE_UP_CELL = 4;
+const int BOX_ITEM_BOMB_RANGE_UP_CELL = 5;
+const int ITEM_BOMB_CNT_UP_CELL = 6;
+const int BOX_ITEM_BOMB_CNT_UP_CELL = 7;
+const int WALL_CELL = 8;
 }
-
 class BitBoard {
 public:
   BitBoard() { memset(array, 0, sizeof(array)); }
-  int64_t get(int y, int x) const {
+  inline int get(int y, int x) const {
     assert(0 <= y and y < 11);
     assert(0 <= x and x < 13);
-    int64_t bit = (array[y] / BIT_POW[12 - x]) % BIT_POW[1];
+    int bit = (array[y] >> SHIFT_WIDTH[x]) & WIDTH_BIT[0];
     return bit;
   }
-  void set(int y, int x, int kind) {
+  inline void set(int y, int x, int kind) {
     assert(0 <= y and y < 11);
     assert(0 <= x and x < 13);
-    assert(0 <= kind and kind < 8);
-    int64_t bit = (array[y] / BIT_POW[12 - x]) % BIT_POW[1];
-    array[y] -= bit * (BIT_POW[12 - x]);
-    int64_t kind_bit = kind * BIT_POW[12 - x];
-    array[y] += kind_bit;
+    assert(0 <= kind and kind < 9);
+    //clear bit
+    array[y] = (array[y] & (~WIDTH_BIT[x])) | ((int64_t)kind << SHIFT_WIDTH[x]);
   }
 
   bool operator<(const BitBoard &right) const {
@@ -88,8 +105,7 @@ public:
          << endl;
     for (int y = 0; y < 11; y++) {
       for (int x = 0; x < 13; x++) {
-        int64_t bit = get(y, x);
-
+        int bit = get(y, x);
         cerr << bit << " ";
       }
       cerr << endl;
@@ -478,10 +494,9 @@ private:
             if (cell_type != CellType::EMPTY_CELL) {
               if (cell_type == CellType::BOX_CELL or
                   cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL or
-                  cell_type ==
-                      CellType::BOX_ITEM_BOMB_CNT_UP_CELL) { // exsit
-                                                             // box(contain item
-                                                             // box)
+                  cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL) { // exsit
+                // box(contain item
+                // box)
                 // destory\
 
                 if (owner == my_id) { // me
@@ -816,7 +831,7 @@ private:
         }
         // cerr << "prune = " << prune_cnt << endl;
       }
-      break;
+      //break;
     }
   END:;
     // cerr << curr_search_states[depth_limit].size() << endl;
