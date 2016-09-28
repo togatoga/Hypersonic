@@ -216,6 +216,8 @@ private:
     int destroied_box_cnt;
     bool survival;
     PlayerInfo() {
+      //Todo
+      max_bomb_cnt = 0;
       //max_bomb_cnt = 3;
       //survival = false;
       //destroied_box_cnt = 0;
@@ -223,6 +225,9 @@ private:
     PlayerInfo(int y, int x, bool survival, int destroied_box_cnt, int remain_bomb_cnt, int explosion_range)
       : y(y), x(x), survival(survival), destroied_box_cnt(destroied_box_cnt), remain_bomb_cnt(remain_bomb_cnt),
           explosion_range(explosion_range) {
+      //Todo
+      //tempory set max_bomb_cnt
+      max_bomb_cnt = 0;
     }
     bool is_survive() const {return survival;}
     bool is_dead() const {return not survival;}
@@ -300,7 +305,7 @@ private:
     cerr << "----------------------------Input "
             "Start------------------------------"
          << endl;
-    cerr << BOARD_WIDTH << " " << BOARD_WIDTH << " " << my_id << endl;
+    cerr << BOARD_WIDTH << " " << BOARD_HEIGHT << " " << my_id << endl;
     for (int i = 0; i < BOARD_HEIGHT; i++) {
       string row;
       if (!(cin >> row)) {
@@ -352,6 +357,7 @@ private:
           res.players[owner].y = y;
           res.players[owner].remain_bomb_cnt = param1;
           res.players[owner].explosion_range = param2;
+	  //res.players[owner].max_bomb_cnt =
 	  //survive
 	  res.players[owner].survival = true;
 	  res.players[owner].destroied_box_cnt = 0;
@@ -618,41 +624,12 @@ private:
     score *= 100;
 
     score += 20 * (search_state.state.players[id].destroied_box_cnt);
-    //score += 10 * (search_state.my_future_destroied_box_cnt);
-
-    score += 10 * search_state.state.players[id].max_bomb_cnt;
-    score += 5 * search_state.state.players[id].explosion_range;
-
-    // score += 4 * (search_state.my_future_destroied_box_cnt -
-    // pre_state.my_future_destroied_box_cnt);
-    // score += (search_state.state.my_info.remain_bomb_cnt -
-    // pre_state.state.my_info.remain_bomb_cnt);
-    // score -= search_state.state.my_info.get_remain_bomb_cnt();
-    // int near_box_cnt = 0;
-    // for (int k = 0; k < 4; k++) {
-    //   for (int d = 0; d < range; d++) {
-    // 	int ny, nx;
-    // 	nx = px + d * DX[k];
-    // 	ny = py + d * DY[k];
-    // 	if (not in_board(ny,nx))break;
-    // 	if (search_state.state.board[ny][nx] == BOX_CELL){
-    // 	  if (search_state.state.future_destroied_boxes.count(make_pair(ny, nx))
-    // > 0)continue;
-    // 	  near_box_cnt++;
-    // 	  break;
-    // 	  // destory
-    // 	  //cerr << py << " " << px << " " << ny << " " << nx << endl;
-    // 	  //next_state.my_future_destroied_box_cnt += 1;
-    // 	  //next_state.state.future_destroied_boxes.emplace(make_pair(ny, nx));
-    // 	  //break;
-    // 	}
-    //   }
-    // }
-    // score += near_box_cnt;
-
+    score += 5 * (search_state.state.players[id].explosion_range - 3);
+    score += 5 * (search_state.state.players[id].remain_bomb_cnt);
+    
     score *= 100;
-    score += 4 * (search_state.state.players[id].explosion_range - 3);
-    score += 4 * (search_state.state.players[id].max_bomb_cnt - 1);
+    //score += 4 * (search_state.state.players[id].explosion_range - 3);
+    //score += 4 * (search_state.state.players[id].max_bomb_cnt - 1);
     //score += (search_state.state.my_info.remain_bomb_cnt - 1);
     int sum_man_dist = 0;
     int min_dist = (BOARD_HEIGHT + BOARD_WIDTH + 1);
@@ -831,12 +808,13 @@ private:
     // init_search_state.state.my_info.x << endl;
     curr_search_states[0].emplace(init_search_state);
     Act tmp_best_act;
-    pair<int, double> tmp_best;
+    pair<int, double> tmp_best(0, 0);
     int chokudai_iter = 0;
     int prune_cnt = 0;
     while (timer.get_mill_duration() <= 85) {
       chokudai_iter++;
       for (int turn = 0; turn < depth_limit; turn++) {
+	//cerr << curr_search_states[turn].size() << endl;
         for (int iter = 0;
              iter < beam_width and (not curr_search_states[turn].empty());
              iter++) {
@@ -852,6 +830,8 @@ private:
             //prune_cnt++;
             continue;
           }
+	  
+	  
 	  auto tmp_score = make_pair(turn, curr_search_state.score);
 	  if (tmp_score > tmp_best){
 	    tmp_best = tmp_score;
@@ -866,8 +846,7 @@ private:
           simulate_next_move(my_id,curr_search_state, curr_search_states[turn + 1],
                              turn);
           // set bomb
-          simulate_next_set_bomb(my_id, curr_search_state,
-                                 curr_search_states[turn + 1], turn);
+          simulate_next_set_bomb(my_id, curr_search_state,curr_search_states[turn + 1], turn);
         }
         // cerr << "prune = " << prune_cnt << endl;
       }
@@ -879,6 +858,7 @@ private:
     cerr << chokudai_iter++ << endl;
     if (not curr_search_states[depth_limit].empty() and curr_search_states[depth_limit].top().score > 0){
       SearchState best = curr_search_states[depth_limit].top();
+      //assert(best.state.players[my_id].max_bomb_cnt >= 0 and best.state.players[my_id].max_bomb_cnt < 13);
       cerr << best.state.players[my_id].survival << " " << best.state.players[my_id].destroied_box_cnt << " " << best.state.players[my_id].max_bomb_cnt << " " << best.state.players[my_id].explosion_range << " " << best.score << endl;
       output_act(best.first_act);
     }else{
