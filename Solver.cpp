@@ -213,17 +213,17 @@ private:
     int max_bomb_cnt;
     int explosion_range;
     //determine player winner
-    int destroied_box_cnt;
+    int box_point;
     bool survival;
     PlayerInfo() {
       //Todo
       max_bomb_cnt = 0;
       //max_bomb_cnt = 3;
       //survival = false;
-      //destroied_box_cnt = 0;
+      //box_point = 0;
     }
-    PlayerInfo(int y, int x, bool survival, int destroied_box_cnt, int remain_bomb_cnt, int explosion_range)
-      : y(y), x(x), survival(survival), destroied_box_cnt(destroied_box_cnt), remain_bomb_cnt(remain_bomb_cnt),
+    PlayerInfo(int y, int x, bool survival, int box_point, int remain_bomb_cnt, int explosion_range)
+      : y(y), x(x), survival(survival), box_point(box_point), remain_bomb_cnt(remain_bomb_cnt),
           explosion_range(explosion_range) {
       //Todo
       //tempory set max_bomb_cnt
@@ -259,7 +259,6 @@ private:
   struct StateInfo {
     BitBoard board;
     vector<Bomb> bombs;
-    //set<pair<int, int>> future_destroied_boxes;
     Player players;
     StateInfo() {}
   };
@@ -360,7 +359,7 @@ private:
 	  //res.players[owner].max_bomb_cnt =
 	  //survive
 	  res.players[owner].survival = true;
-	  res.players[owner].destroied_box_cnt = 0;
+	  res.players[owner].box_point = 0;
       } else if (entityType == EntityType::BOMB) { // Bomb
         res.bombs.emplace_back(Bomb(y, x, owner, param1, param2));
         res.board.set(y, x, CellType::BOMB_CELL);
@@ -558,8 +557,8 @@ private:
             }
             if (on_object_cell(cell_type)) {
               if (on_any_box_cell(cell_type)){
-		//assert(state.state.players[owner].destroied_box_cnt >= 0);
-		state.players[owner].destroied_box_cnt += 1;
+		//assert(state.state.players[owner].box_point >= 0);
+		state.players[owner].box_point += 1;
 		  
 		destroyed_objects.emplace(make_pair(ny, nx));
               } else if (on_any_box_cell(cell_type)){
@@ -612,8 +611,8 @@ private:
     const int px = search_state.state.players[id].x;
     const int py = search_state.state.players[id].y;
     const int range = search_state.state.players[id].explosion_range;
-    // score += 6 * (search_state.my_destroied_box_cnt -
-    // pre_state.my_destroied_box_cnt);
+    // score += 6 * (search_state.my_box_point -
+    // pre_state.my_box_point);
 
     // death penalty
     // cerr << "unko" << endl;
@@ -622,7 +621,7 @@ private:
     }
     score *= 100;
 
-    score += 20 * (search_state.state.players[id].destroied_box_cnt);
+    score += 20 * (search_state.state.players[id].box_point);
     score += 5 * (search_state.state.players[id].explosion_range - 3);
     score += 5 * (search_state.state.players[id].remain_bomb_cnt);
     
@@ -839,7 +838,7 @@ private:
           visited[turn].emplace(key);
           // simulate bomb
 	  //if (turn != 0)
-	  simulate_bomb_explosion(curr_search_state, turn);
+	  simulate_bomb_explosion(curr_search_state.state, turn);
           // next state
           // move
           simulate_next_move(my_id,curr_search_state, curr_search_states[turn + 1],
@@ -858,7 +857,7 @@ private:
     if (not curr_search_states[depth_limit].empty() and curr_search_states[depth_limit].top().score > 0){
       SearchState best = curr_search_states[depth_limit].top();
       //assert(best.state.players[my_id].max_bomb_cnt >= 0 and best.state.players[my_id].max_bomb_cnt < 13);
-      cerr << best.state.players[my_id].survival << " " << best.state.players[my_id].destroied_box_cnt << " " << best.state.players[my_id].max_bomb_cnt << " " << best.state.players[my_id].explosion_range << " " << best.score << endl;
+      cerr << best.state.players[my_id].survival << " " << best.state.players[my_id].box_point << " " << best.state.players[my_id].max_bomb_cnt << " " << best.state.players[my_id].explosion_range << " " << best.score << endl;
       output_act(best.first_act);
     }else{
       cerr << "temp action" << endl;
@@ -869,8 +868,8 @@ private:
   //----------------------------data----------------------------------------------
   int my_id;
   StateInfo pre_state;
-  void update(){
-    simulate_bomb_explosion();
+  void update(const StateInfo &curr_state, const StateInfo &pre_state){
+    //simulate_bomb_explosion();
   }
   
 };
