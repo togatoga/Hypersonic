@@ -238,7 +238,7 @@ private:
   struct StateInfo {
     BitBoard board;
     vector<Bomb> bombs;
-    set<pair<int, int>> future_destroied_boxes;
+    //set<pair<int, int>> future_destroied_boxes;
     PlayerInfo my_info, enemy_info;
     StateInfo() {}
   };
@@ -266,14 +266,14 @@ private:
     StateInfo state;
     Act first_act;
     int my_destroied_box_cnt;
-    int my_future_destroied_box_cnt;
+    //int my_future_destroied_box_cnt;
     double score;
     bool operator<(const SearchState &right) const {
       return score < right.score;
     }
     SearchState() {
       my_destroied_box_cnt = 0;
-      my_future_destroied_box_cnt = 0;
+      //my_future_destroied_box_cnt = 0;
       score = 0;
     }
   };
@@ -659,7 +659,7 @@ private:
     score *= 100;
 
     score += 20 * (search_state.my_destroied_box_cnt);
-    score += 10 * (search_state.my_future_destroied_box_cnt);
+    //score += 10 * (search_state.my_future_destroied_box_cnt);
 
     score += 10 * search_state.state.my_info.max_bomb_cnt;
     score += 5 * search_state.state.my_info.explosion_range;
@@ -704,9 +704,9 @@ private:
         if (cell_type == CellType::BOX_CELL or
             cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL or
             cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL) {
-          if (search_state.state.future_destroied_boxes.count(make_pair(y, x)) >
-              0)
-            continue;
+          // if (search_state.state.future_destroied_boxes.count(make_pair(y, x)) >
+          //     0)
+          //   continue;
           int dist = abs(px - x) + abs(py - y);
           active_boxes_cnt++;
           min_dist = min(min_dist, dist);
@@ -781,29 +781,29 @@ private:
     SearchState next_state = state;
     
     //d > 1
-    for (int k = 0; k < 4; k++) {
-      for (int d = 1; d < range; d++) {
-        int ny, nx;
-        nx = px + d * DX[k];
-        ny = py + d * DY[k];
-        if (not in_board(ny, nx))
-          break;
-        int cell_type = next_state.state.board.get(ny, nx);
-	if (cell_type == CellType::WALL_CELL or on_any_item_cell(cell_type) or on_any_bomb_cell(cell_type)){//exsist wall or item or bomb
-	  break;
-	}
-        if (on_any_box_cell(cell_type)){
-          if (next_state.state.future_destroied_boxes.count(make_pair(ny, nx)) >
-              0)
-            continue;
-          // destory
-	  //cerr << py << " " << px << " " << ny << " " << nx << endl;
-          next_state.my_future_destroied_box_cnt += 1;
-          next_state.state.future_destroied_boxes.emplace(make_pair(ny, nx));
-          break;
-        }
-      }
-    }
+    // for (int k = 0; k < 4; k++) {
+    //   for (int d = 1; d < range; d++) {
+    //     int ny, nx;
+    //     nx = px + d * DX[k];
+    //     ny = py + d * DY[k];
+    //     if (not in_board(ny, nx))
+    //       break;
+    //     int cell_type = next_state.state.board.get(ny, nx);
+    // 	if (cell_type == CellType::WALL_CELL or on_any_item_cell(cell_type) or on_any_bomb_cell(cell_type)){//exsist wall or item or bomb
+    // 	  break;
+    // 	}
+    //     if (on_any_box_cell(cell_type)){
+    //       // if (next_state.state.future_destroied_boxes.count(make_pair(ny, nx)) >
+    //       //     0)
+    //       //   continue;
+    //       // destory
+    // 	  //cerr << py << " " << px << " " << ny << " " << nx << endl;
+    //       //next_state.my_future_destroied_box_cnt += 1;
+    //       next_state.state.future_destroied_boxes.emplace(make_pair(ny, nx));
+    //       break;
+    //     }
+    //   }
+    // }
     next_state.state.board.set(py, px, CellType::BOMB_CELL);
     next_state.state.bombs.emplace_back(Bomb(py, px, my_id, 8, range));
     next_state.state.my_info.remain_bomb_cnt--;
@@ -867,8 +867,8 @@ private:
     Timer timer;
     timer.start();
 
-    const int beam_width = 30;
-    const int depth_limit = 10;
+    const int beam_width = 10;
+    const int depth_limit = 24;
     priority_queue<SearchState> curr_search_states[depth_limit + 1];
     set<tuple<PlayerInfo, PlayerInfo, BitBoard, vector<Bomb>>>
         visited[depth_limit + 1];
@@ -924,7 +924,7 @@ private:
     // cerr << curr_search_states[depth_limit].size() << endl;
     cerr << chokudai_iter++ << endl;
     SearchState best = curr_search_states[depth_limit].top();
-    cerr << best.my_destroied_box_cnt << " " << best.my_future_destroied_box_cnt
+    cerr << best.my_destroied_box_cnt 
          << " " << best.state.my_info.max_bomb_cnt << " "
          << best.state.my_info.explosion_range << " " << best.score << endl;
     output_act(best.first_act);
