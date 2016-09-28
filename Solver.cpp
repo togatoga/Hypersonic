@@ -883,8 +883,8 @@ private:
     Timer timer;
     timer.start();
 
-    const int beam_width = 10;
-    const int depth_limit = 24;
+    const int beam_width = 30;
+    const int depth_limit = 16;
     priority_queue<SearchState> curr_search_states[depth_limit + 1];
     set<tuple<PlayerInfo, PlayerInfo, BitBoard, vector<Bomb>>>
         visited[depth_limit + 1];
