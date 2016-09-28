@@ -636,7 +636,8 @@ private:
     }
     sort(next_bombs.begin(), next_bombs.end());
     // bombs = next_bombs;
-    bombs.swap(next_bombs);
+    //bombs.swap(next_bombs);
+    bombs = move(next_bombs);
     // cerr << bombs.size() << endl;
     return ;
   }
@@ -698,6 +699,7 @@ private:
     int sum_man_dist = 0;
     int min_dist = (BOARD_HEIGHT + BOARD_WIDTH + 1);
     int active_boxes_cnt = 0;
+    
     for (int y = 0; y < BOARD_HEIGHT; y++) {
       for (int x = 0; x < BOARD_WIDTH; x++) {
         int cell_type = search_state.state.board.get(y, x);
@@ -716,7 +718,21 @@ private:
     }
     score += 12 * ((BOARD_HEIGHT + BOARD_WIDTH) - min_dist);
     score += (BOARD_HEIGHT + BOARD_WIDTH) * (active_boxes_cnt)-sum_man_dist;
+    score *= 100;
 
+
+    //0 0
+    //penlaty corner
+    //upper left 0 0
+    int d0,d1,d2,d3;
+    d0 = abs(px - 0) + abs(py - 0);
+    //upper right BOARD_HEIGHH - 1, 0
+    d1 = abs(px - (BOARD_WIDTH - 1)) + abs(py - 0);
+    //lower left
+    d2 = abs(px - 0) + abs(py - (BOARD_HEIGHT - 1));
+    //lower right
+    d3 = abs(px - (BOARD_WIDTH - 1)) + abs(py - (BOARD_HEIGHT - 1));
+    score -= max({d0, d1, d2, d3});
     return score;
   }
   void simulate_next_move(const SearchState &state,
