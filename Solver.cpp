@@ -156,19 +156,18 @@ class Solver {
 
 public:
   Solver() {
-    game_turn = 0;
   }
   void solve() {
     int width, height, myid;
     cin >> width >> height >> myid;
-
     assert(width == BOARD_WIDTH and height == BOARD_HEIGHT);
     cin.ignore();
+    //-----------------------------init------------------------------------------
     my_id = myid;
-    
-    int turn = 0;
+    game_turn = 0;
+    external_player_info.fill(0);
+    //-----------------------------init------------------------------------------
     while (true) {
-
       StateInfo input_info = input(true);
       if (my_id == -1)
         break;
@@ -212,20 +211,15 @@ private:
   struct PlayerInfo {
     int x, y;
     int max_bomb_cnt;
-    int remain_bomb_cnt;
     
+    int remain_bomb_cnt;
     int explosion_range;
-
-
     
     //determine winner player
     int sum_box_point;
     bool survival;
     PlayerInfo() {
-      //Todo
-      //max_bomb_cnt = 3;
-      //survival = false;
-      //box_point = 0;
+      survival = false;
     }
     // PlayerInfo(int y, int x, bool survival, int sum_box_point, int remain_bomb_cnt, int explosion_range)
     //   : y(y), x(x), survival(survival), sum_box_point(sum_box_point), remain_bomb_cnt(remain_bomb_cnt),
@@ -360,7 +354,7 @@ private:
           res.players[owner].explosion_range = param2;//range
 	  //survive
 	  res.players[owner].survival = true;
-	  res.players[owner].sum_box_point = 0;//later update
+	  res.players[owner].sum_box_point = external_player_info[owner];//later update
 	  res.players[owner].max_bomb_cnt = param1;//later update
 
       } else if (entityType == EntityType::BOMB) { // Bomb
@@ -565,7 +559,7 @@ private:
 		state.players[owner].sum_box_point += 1;
 		//update
 		if (do_update){//sum box point
-		  external_player_info[owner].first += 1;
+		  external_player_info[owner] += 1;
 		}
 		destroyed_objects.emplace(make_pair(ny, nx));
               } else if (on_any_box_cell(cell_type)){
@@ -809,12 +803,10 @@ private:
 
     SearchState init_search_state;
     init_search_state.state = init_info;
-    //update
-    if (game_turn > 0)
-      update_state(init_search_state.state, pre_state);
-    else
-      pre_state = init_search_state.state;
+    //print players info
+    
     debug_players_info(init_search_state.state.players);
+    
     curr_search_states[0].emplace(init_search_state);
     Act tmp_best_act;
     pair<int, double> tmp_best(0, 0);
@@ -874,14 +866,13 @@ private:
       cerr << "temp action" << endl;
       output_act(tmp_best_act);
     }
-
+    if (game_turn > 0)
+      update_state(init_search_state.state);
   }
   //----------------------------data----------------------------------------------
   int my_id;
   int game_turn;
-  StateInfo pre_state;
   array<int, GameRule::MAX_PLAYER_NUM> external_player_info;//box point, max_bomb_cnt
-
   void debug_players_info(const Player &players){
     cerr << "----------------------Player Info Start----------------------------------------------" << endl;
     for (int i = 0; i < GameRule::MAX_PLAYER_NUM; i++){
@@ -890,7 +881,7 @@ private:
     }
     cerr << "----------------------Player Info End----------------------------------------------" << endl;
   }
-  void update_state(StateInfo &curr_state, StateInfo &pre_state){
+  void update_state(StateInfo &curr_state){
     //update box point
     StateInfo tmp_state = curr_state;
     simulate_bomb_explosion(tmp_state, true);
@@ -900,9 +891,8 @@ private:
       int py = tmp_state.players[i].y;
       int px = tmp_state.players[i].x;
       //update state
-      curr_state.players[i].sum_box_point = external_player_info[i].first;
+      curr_state.players[i].sum_box_point = external_player_info[i];
     }
-    pre_state = tmp_state;
     return ;
   }
   
