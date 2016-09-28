@@ -625,7 +625,7 @@ private:
     score += 20 * (search_state.state.players[id].sum_box_point);
     score += 3 * (min(13, search_state.state.players[id].explosion_range) - 3);
     score += 3 * (min(7, search_state.state.players[id].max_bomb_cnt) - 1);
-    score += (search_state.state.players[id].remain_bomb_cnt);
+    score += (min(7, search_state.state.players[id].remain_bomb_cnt));
     
     score *= 100;
     //score += 4 * (search_state.state.players[id].explosion_range - 3);
