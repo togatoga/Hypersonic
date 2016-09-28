@@ -67,7 +67,7 @@ namespace CellType {
 const int EMPTY_CELL = 0;
 const int BOX_CELL = 1;
 const int BOMB_CELL = 2;
-const int BOMB_EXPLODED = 3;
+const int BOMB_EXPLODED_CELL = 3;
 const int ITEM_BOMB_RANGE_UP_CELL = 4;
 const int BOX_ITEM_BOMB_RANGE_UP_CELL = 5;
 const int ITEM_BOMB_CNT_UP_CELL = 6;
@@ -368,62 +368,114 @@ private:
         << endl;
     return res;
   }
+
+  inline bool on_bomb_cell(int cell_type){
+    if (cell_type == CellType::BOMB_CELL){
+      return true;
+    }
+    return false;
+  }
+  inline bool on_bomb_exploded_cell(int cell_type){
+    if (cell_type == CellType::BOMB_EXPLODED_CELL){
+      return true;
+    }
+    return false;
+  }
+  inline bool on_box_cell(int cell_type){
+    if (cell_type == CellType::BOX_CELL){
+      return true;
+    }
+    return false;
+  }
+  inline bool on_box_item_cell(int cell_type){
+    if (cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL or cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL){
+      return true;
+    }
+    return false;
+  }
+  inline bool on_any_box_cell(int cell_type){
+    if (on_box_cell(cell_type) or on_box_item_cell(cell_type)){
+      return true;
+    }
+    return false;
+  }
+  inline bool on_any_item_cell(int cell_type){
+    if (cell_type == CellType::ITEM_BOMB_RANGE_UP_CELL or cell_type == CellType::ITEM_BOMB_CNT_UP_CELL){
+      return true;
+    }
+    return false;
+  }
+  
+  inline bool on_object_cell(int cell_type){
+    if (cell_type != CellType::EMPTY_CELL){
+      return true;
+    }
+    return false;
+  }
+  
   int my_id;
-
-  void simulate_bomb_inducing_explosion(
-      pair<int, int> exploded_key, set<pair<int, int>> &exploded_bombs,
-      map<pair<int, int>, int> &map_explosion_range, const BitBoard &board) {
-    if (exploded_bombs.count(exploded_key) > 0)
-      return;
-
-    int px = exploded_key.second;
+  void simulate_bomb_inducing_explosion(const pair<int, int> exploded_key, const int range, bool occupied, const multimap<pair<int, int>, int> &multimp_explosion_range, BitBoard &board) {
+    int px = exploded_key.second;;
     int py = exploded_key.first;
-    // cerr << py << " " << px << endl;
+    int cell_type = board.get(py, px);
+    
     assert(in_board(py, px));
-    exploded_bombs.emplace(make_pair(py, px));
+    
+    board.set(py, px, CellType::BOMB_EXPLODED_CELL);
+    
+    //d ==0
+    if (occupied == false and multimp_explosion_range.count(make_pair(py, px)) > 1){//duplicated
+      auto iter_equal_range = multimp_explosion_range.equal_range(exploded_key);
+      for (auto it = iter_equal_range.first; it != iter_equal_range.second; it++){
+	simulate_bomb_inducing_explosion(it->first, it->second, true, multimp_explosion_range, board);
+      }
+      return ;
+    }
+    
 
-    int range = map_explosion_range[make_pair(py, px)];
-    // cerr << range << endl;
+    //d > 1
     for (int k = 0; k < 4; k++) {
-      for (int d = 0; d < range; d++) {
+      for (int d = 1; d < range; d++) {
         int ny, nx;
         nx = px + d * DX[k];
         ny = py + d * DY[k];
         if (not in_board(ny, nx))
           break;
-        if (map_explosion_range.count(make_pair(ny, nx)) > 0 and
-            exploded_bombs.count(make_pair(ny, nx)) ==
-                0) { // inducing explosion
-          simulate_bomb_inducing_explosion(make_pair(ny, nx), exploded_bombs,
-                                           map_explosion_range, board);
-          break;
-        }
-        int cell_type = board.get(ny, nx);
-        if (d != 0 and cell_type != CellType::EMPTY_CELL) { // exsit object
-          // cerr << d << " " << k << endl;
-          break;
-        }
+	int cell_type = board.get(ny , nx);
+        if (on_bomb_cell(cell_type)){//inducing explosion
+	  auto iter_equal_range = multimp_explosion_range.equal_range(make_pair(ny, nx));
+	  pair<int, int> next_key = iter_equal_range.first->first;
+	  int next_range = iter_equal_range.first->second;
+	  simulate_bomb_inducing_explosion(next_key, next_range, true, multimp_explosion_range, board);
+	  break;
+	}else if(on_object_cell(cell_type)){//exsist object
+	  break;
+	}
       }
     }
+    return ;
   }
   void simulate_bomb_explosion(SearchState &state, int turn) {
     vector<Bomb> &bombs = state.state.bombs;
-    set<pair<int, int>> exploded_bombs;
-    map<pair<int, int>, int> map_explosion_range;
-    for (int i = 0; i < bombs.size(); i++) {
-      pair<int, int> key = make_pair(bombs[i].y, bombs[i].x);
-      int explosion_range = bombs[i].explosion_range;
-      map_explosion_range[key] = explosion_range;
-    }
+    multimap<pair<int, int>, int> multimp_explosion_range;
     for (int i = 0; i < bombs.size(); i++) {
       bombs[i].dec_turn();
+      int x,y;
+      x = bombs[i].x;
+      y = bombs[i].y;
+      int range = bombs[i].explosion_range;
+      multimp_explosion_range.emplace(make_pair(y, x), range);
+    }
+    
+    for (int i = 0; i < bombs.size(); i++) {
       int x, y;
       x = bombs[i].x;
       y = bombs[i].y;
-      if (bombs[i].is_explode()) {
+      int cell_type = state.state.board.get(y, x);
+      if (bombs[i].is_explode() and on_bomb_cell(cell_type)) {
         // cerr << y << " " << x << endl;
-        simulate_bomb_inducing_explosion(make_pair(y, x), exploded_bombs,
-                                         map_explosion_range,
+        simulate_bomb_inducing_explosion(make_pair(y, x),bombs[i].explosion_range, false,
+                                         multimp_explosion_range,
                                          state.state.board);
       }
     }
@@ -434,8 +486,8 @@ private:
     for (int i = 0; i < bombs.size(); i++) {
       const int px = bombs[i].x;
       const int py = bombs[i].y;
-      if (exploded_bombs.count(make_pair(py, px)) > 0) { // exploded
-
+      const int current_cell_type = state.state.board.get(py, px);
+      if (on_bomb_exploded_cell(current_cell_type)) {// bomb is exploded 
         int owner = bombs[i].owner;
         int range = bombs[i].explosion_range;
         // assert(owner == 0 or owner == 1 or owner == 2);
@@ -448,22 +500,49 @@ private:
         }
         // right  up left down
         bool damged = false;
+	//d == 0
+	
+	//damage
+	{
+	  int player_y, player_x;
+	  player_y = state.state.my_info.y;
+	  player_x = state.state.my_info.x;
+	  // cerr << d << " " << k << endl;
+	  if (owner == my_id) {
+	    // cerr << py << " " << px << " " << ny << " " << nx << endl;
+	    // cerr << player_y << " " << player_x << endl;
+	  }
+
+	  if (not damged and (py == player_y and px == player_x)) {
+	    // cerr << py << " " << px << " " << ny << " " << nx << " " << d
+	    // << " " << k << endl;
+	    state.state.my_info.life_point--;
+	    // cerr << state.state.my_info.life_point << endl;
+	    // assert(state.state.my_info.life_point == 0);
+	    // assert(false);
+	    // assert(false);
+	    damged = true;
+	  }
+	  // player_y = state.state.enemy_info.y;
+	  // player_x = state.state.enemy_info.x;
+	  // if (ny == player_y and nx == player_x){
+	  //   state.state.enemy_info.life_point--;
+	  // }
+	}
+
+	//d > 1
         for (int k = 0; k < 4; k++) {
-          for (int d = 0; d < range; d++) {
+          for (int d = 1; d < range; d++) {
             int ny, nx;
             nx = px + d * DX[k];
             ny = py + d * DY[k];
-
             if (not in_board(ny, nx))
               break;
             int cell_type = state.state.board.get(ny, nx);
 
-            if ((d != 0 and cell_type == CellType::BOMB_CELL) or
-                cell_type == CellType::WALL_CELL) { // exsit bombs
-              break;
-            }
-
-            {
+	    
+	    //damage
+	    {
               int player_y, player_x;
               player_y = state.state.my_info.y;
               player_x = state.state.my_info.x;
@@ -483,7 +562,6 @@ private:
                 // assert(false);
                 damged = true;
               }
-
               // player_y = state.state.enemy_info.y;
               // player_x = state.state.enemy_info.x;
               // if (ny == player_y and nx == player_x){
@@ -491,10 +569,13 @@ private:
               // }
             }
 
-            if (cell_type != CellType::EMPTY_CELL) {
-              if (cell_type == CellType::BOX_CELL or
-                  cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL or
-                  cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL) { // exsit
+	    
+            if (cell_type == CellType::BOMB_CELL or cell_type == CellType::BOMB_EXPLODED_CELL or
+                cell_type == CellType::WALL_CELL) { // exsit bombs or wall
+              break;
+            }
+            if (on_object_cell(cell_type)) {
+              if (on_any_box_cell(cell_type)){
                 // box(contain item
                 // box)
                 // destory\
@@ -504,28 +585,23 @@ private:
                   // cerr << py << " " << px << " " << " " << ny << " " << nx <<
                   // endl;
                   // cerr << d << " " << k << endl;
-
+		  
                   state.my_destroied_box_cnt += 1;
                   destroyed_objects.emplace(make_pair(ny, nx));
 
                 } else { // enemy
                   // Todo
                 }
-              } else if (cell_type == CellType::ITEM_BOMB_RANGE_UP_CELL or
-                         cell_type ==
-                             CellType::ITEM_BOMB_CNT_UP_CELL) { // item box
+              } else if (on_any_box_cell(cell_type)){
                 destroyed_objects.emplace(make_pair(ny, nx));
               }
-
-              // cerr << py << " " << px << " " << d << " " << k << endl;
-              if (d != 0) {
-                break;
-              }
+	      break;
             }
           }
         }
       }
     }
+    
     for (const auto &val : destroyed_objects) {
       int y, x;
       x = val.second;
@@ -535,9 +611,9 @@ private:
           cell_type == CellType::ITEM_BOMB_RANGE_UP_CELL or
           cell_type == CellType::ITEM_BOMB_CNT_UP_CELL) { // EMPTY CELL
         state.state.board.set(y, x, CellType::EMPTY_CELL);
-      } else if (cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL) {
+      } else if (cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL) {//box item  range up
         state.state.board.set(y, x, CellType::ITEM_BOMB_RANGE_UP_CELL);
-      } else if (cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL) {
+      } else if (cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL) {//box item cnt up
         state.state.board.set(y, x, CellType::ITEM_BOMB_CNT_UP_CELL);
       }
     }
@@ -545,7 +621,8 @@ private:
     for (int i = 0; i < bombs.size(); i++) {
       int x = bombs[i].x;
       int y = bombs[i].y;
-      if (exploded_bombs.count(make_pair(y, x)) == 0) { // not exploded
+      int cell_type = state.state.board.get(y, x);
+      if (on_bomb_cell(cell_type)) { // not exploded
         next_bombs.emplace_back(bombs[i]);
       } else { // exploed
         state.state.board.set(y, x, CellType::EMPTY_CELL);
@@ -555,6 +632,7 @@ private:
     // bombs = next_bombs;
     bombs.swap(next_bombs);
     // cerr << bombs.size() << endl;
+    return ;
   }
 
   double calc_score(const SearchState &pre_state,
