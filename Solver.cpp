@@ -381,6 +381,12 @@ private:
     }
     return false;
   }
+  inline bool on_any_bomb_cell(int cell_type){
+    if (on_bomb_cell(cell_type) or on_bomb_exploded_cell(cell_type)){
+      return true;
+    }
+    return false;
+  }
   inline bool on_box_cell(int cell_type){
     if (cell_type == CellType::BOX_CELL){
       return true;
@@ -582,8 +588,8 @@ private:
 
                 if (owner == my_id) { // me
                   // cerr << "turn = " << turn << endl;
-                  // cerr << py << " " << px << " " << " " << ny << " " << nx <<
-                  // endl;
+		  //cerr << py << " " << px << " " << " " << ny << " " << nx << endl;
+
                   // cerr << d << " " << k << endl;
 		  
                   state.my_destroied_box_cnt += 1;
@@ -686,9 +692,9 @@ private:
     // score += near_box_cnt;
 
     score *= 100;
-    score += search_state.state.my_info.explosion_range;
-    score += 4 * search_state.state.my_info.max_bomb_cnt;
-
+    score += 4 * (search_state.state.my_info.explosion_range - 3);
+    score += 4 * (search_state.state.my_info.max_bomb_cnt - 1);
+    //score += (search_state.state.my_info.remain_bomb_cnt - 1);
     int sum_man_dist = 0;
     int min_dist = (BOARD_HEIGHT + BOARD_WIDTH + 1);
     int active_boxes_cnt = 0;
@@ -773,22 +779,25 @@ private:
     }
 
     SearchState next_state = state;
+    
+    //d > 1
     for (int k = 0; k < 4; k++) {
-      for (int d = 0; d < range; d++) {
+      for (int d = 1; d < range; d++) {
         int ny, nx;
         nx = px + d * DX[k];
         ny = py + d * DY[k];
         if (not in_board(ny, nx))
           break;
         int cell_type = next_state.state.board.get(ny, nx);
-        if (cell_type == CellType::BOX_CELL or
-            cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL or
-            cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL) {
+	if (cell_type == CellType::WALL_CELL or on_any_item_cell(cell_type) or on_any_bomb_cell(cell_type)){//exsist wall or item or bomb
+	  break;
+	}
+        if (on_any_box_cell(cell_type)){
           if (next_state.state.future_destroied_boxes.count(make_pair(ny, nx)) >
               0)
             continue;
           // destory
-          // cerr << py << " " << px << " " << ny << " " << nx << endl;
+	  //cerr << py << " " << px << " " << ny << " " << nx << endl;
           next_state.my_future_destroied_box_cnt += 1;
           next_state.state.future_destroied_boxes.emplace(make_pair(ny, nx));
           break;
