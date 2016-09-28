@@ -7,7 +7,7 @@
 #include <sys/time.h>
 #include <tuple>
 #include <vector>
-
+#include <array>
 #include <string.h>
 
 using namespace std;
@@ -212,22 +212,17 @@ private:
     int remain_bomb_cnt;
     int max_bomb_cnt;
     int explosion_range;
-    int life_point;
-
     //determine player winner
     int destroied_box_cnt;
     bool survival;
     PlayerInfo() {
-      max_bomb_cnt = 3;
-      life_point = 1;
-      survival = false;
+      //max_bomb_cnt = 3;
+      //survival = false;
+      //destroied_box_cnt = 0;
     }
     PlayerInfo(int y, int x, bool survival, int destroied_box_cnt, int remain_bomb_cnt, int explosion_range)
       : y(y), x(x), survival(survival), destroied_box_cnt(destroied_box_cnt), remain_bomb_cnt(remain_bomb_cnt),
           explosion_range(explosion_range) {
-      max_bomb_cnt = 3;
-      life_point = 1;
-
     }
     bool is_survive() const {return survival;}
     bool is_dead() const {return not survival;}
@@ -245,9 +240,7 @@ private:
       if (survival != right.survival){
 	return survival < right.survival;
       }
-      if (life_point != right.life_point) {
-        return life_point < right.life_point;
-      }
+
       if (remain_bomb_cnt != right.remain_bomb_cnt) {
         return remain_bomb_cnt < right.remain_bomb_cnt;
       }
@@ -289,16 +282,11 @@ private:
   struct SearchState {
     StateInfo state;
     Act first_act;
-    //int my_destroied_box_cnt;
-    //int my_future_destroied_box_cnt;
     double score;
     bool operator<(const SearchState &right) const {
       return score < right.score;
     }
     SearchState() {
-      //my_destroied_box_cnt = 0;
-      //my_future_destroied_box_cnt = 0;
-      score = 0;
     }
   };
   bool in_board(int y, int x) {
@@ -366,6 +354,7 @@ private:
           res.players[owner].explosion_range = param2;
 	  //survive
 	  res.players[owner].survival = true;
+	  res.players[owner].destroied_box_cnt = 0;
       } else if (entityType == EntityType::BOMB) { // Bomb
         res.bombs.emplace_back(Bomb(y, x, owner, param1, param2));
         res.board.set(y, x, CellType::BOMB_CELL);
@@ -528,6 +517,7 @@ private:
 	    player_y = state.state.players[player_id].y;
 	    player_x = state.state.players[player_id].x;
 	    if ((py == player_y and px == player_x)) {
+
 	      state.state.players[player_id].survival = false;
 	    }
 	  }
@@ -563,8 +553,10 @@ private:
             }
             if (on_object_cell(cell_type)) {
               if (on_any_box_cell(cell_type)){
-                  state.state.players[owner].destroied_box_cnt += 1;
-                  destroyed_objects.emplace(make_pair(ny, nx));
+		//assert(state.state.players[owner].destroied_box_cnt >= 0);
+		state.state.players[owner].destroied_box_cnt += 1;
+		  
+		destroyed_objects.emplace(make_pair(ny, nx));
               } else if (on_any_box_cell(cell_type)){
                 destroyed_objects.emplace(make_pair(ny, nx));
               }
@@ -720,18 +712,20 @@ private:
           cell_type == CellType::WALL_CELL)
         continue;
       if (k != 4) {
-        if (cell_type == CellType::BOMB_CELL) {
+        if (cell_type == CellType::BOMB_CELL or cell_type == CellType::BOMB_EXPLODED_CELL) {
           continue;
         }
       }
       SearchState next_state = state;
       if (cell_type == CellType::ITEM_BOMB_RANGE_UP_CELL) {
-        // cerr << "unko" << endl;
+
         next_state.state.players[id].explosion_range++;
         next_state.state.board.set(ny, nx, CellType::EMPTY_CELL);
       } else if (cell_type == CellType::ITEM_BOMB_CNT_UP_CELL) {
         next_state.state.players[id].max_bomb_cnt += 1;
+	//assert(next_state.state.players[id].max_bomb_cnt >= 0);
         next_state.state.players[id].remain_bomb_cnt += 1;
+
         next_state.state.board.set(ny, nx, CellType::EMPTY_CELL);
       }
       next_state.state.players[id].y = ny;
@@ -824,8 +818,8 @@ private:
     Timer timer;
     timer.start();
 
-    const int beam_width = 30;
-    const int depth_limit = 16;
+    const int beam_width = 20;
+    const int depth_limit = 20;
     priority_queue<SearchState> curr_search_states[depth_limit + 1];
     set<tuple<Player, BitBoard, vector<Bomb>>>
         visited[depth_limit + 1];
@@ -836,16 +830,13 @@ private:
     // cerr << init_search_state.state.my_info.y << " " <<
     // init_search_state.state.my_info.x << endl;
     curr_search_states[0].emplace(init_search_state);
-    Act best_act;
-    double best_score = 0.0;
+    Act tmp_best_act;
+    pair<int, double> tmp_best;
     int chokudai_iter = 0;
+    int prune_cnt = 0;
     while (timer.get_mill_duration() <= 85) {
       chokudai_iter++;
       for (int turn = 0; turn < depth_limit; turn++) {
-        // count_duplicated_first_ACT(curr_search_states[turn], turn);
-        // count_ACT_BOMB(curr_search_states[turn], turn);
-        // cerr << curr_search_states[turn].size() << endl;
-        // int prune_cnt = 0;
         for (int iter = 0;
              iter < beam_width and (not curr_search_states[turn].empty());
              iter++) {
@@ -858,12 +849,18 @@ private:
                                 curr_search_state.state.bombs);
           if (visited[turn].count(key) > 0) {
             iter--;
-            // prune_cnt++;
+            //prune_cnt++;
             continue;
           }
+	  auto tmp_score = make_pair(turn, curr_search_state.score);
+	  if (tmp_score > tmp_best){
+	    tmp_best = tmp_score;
+	    tmp_best_act = curr_search_state.first_act;
+	  }
           visited[turn].emplace(key);
           // simulate bomb
-          simulate_bomb_explosion(curr_search_state, turn);
+	  //if (turn != 0)
+	  simulate_bomb_explosion(curr_search_state, turn);
           // next state
           // move
           simulate_next_move(my_id,curr_search_state, curr_search_states[turn + 1],
@@ -877,13 +874,18 @@ private:
       //break;
     }
   END:;
+    //cerr << prune_cnt << endl;
     // cerr << curr_search_states[depth_limit].size() << endl;
     cerr << chokudai_iter++ << endl;
-    SearchState best = curr_search_states[depth_limit].top();
-    cerr << best.state.players[my_id].destroied_box_cnt
-         << " " << best.state.players[my_id].max_bomb_cnt << " "
-         << best.state.players[my_id].explosion_range << " " << best.score << endl;
-    output_act(best.first_act);
+    if (not curr_search_states[depth_limit].empty() and curr_search_states[depth_limit].top().score > 0){
+      SearchState best = curr_search_states[depth_limit].top();
+      cerr << best.state.players[my_id].survival << " " << best.state.players[my_id].destroied_box_cnt << " " << best.state.players[my_id].max_bomb_cnt << " " << best.state.players[my_id].explosion_range << " " << best.score << endl;
+      output_act(best.first_act);
+    }else{
+      cerr << "temp action" << endl;
+      output_act(tmp_best_act);
+    }
+
   }
 };
 
