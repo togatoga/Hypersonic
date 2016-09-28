@@ -436,7 +436,7 @@ private:
     return false;
   }
   
-  int my_id;
+
   void simulate_bomb_inducing_explosion(const pair<int, int> exploded_key, const int range, bool occupied, const multimap<pair<int, int>, int> &multimp_explosion_range, BitBoard &board) {
     int px = exploded_key.second;;
     int py = exploded_key.first;
@@ -478,8 +478,8 @@ private:
     }
     return ;
   }
-  void simulate_bomb_explosion(SearchState &state, int turn) {
-    vector<Bomb> &bombs = state.state.bombs;
+  void simulate_bomb_explosion(StateInfo &state, int turn) {
+    vector<Bomb> &bombs = state.bombs;
     multimap<pair<int, int>, int> multimp_explosion_range;
     for (int i = 0; i < bombs.size(); i++) {
       bombs[i].dec_turn();
@@ -494,12 +494,12 @@ private:
       int x, y;
       x = bombs[i].x;
       y = bombs[i].y;
-      int cell_type = state.state.board.get(y, x);
+      int cell_type = state.board.get(y, x);
       if (bombs[i].is_explode() and on_bomb_cell(cell_type)) {
         // cerr << y << " " << x << endl;
         simulate_bomb_inducing_explosion(make_pair(y, x),bombs[i].explosion_range, false,
                                          multimp_explosion_range,
-                                         state.state.board);
+                                         state.board);
       }
     }
 
@@ -509,22 +509,21 @@ private:
     for (int i = 0; i < bombs.size(); i++) {
       const int px = bombs[i].x;
       const int py = bombs[i].y;
-      const int current_cell_type = state.state.board.get(py, px);
+      const int current_cell_type = state.board.get(py, px);
       if (on_bomb_exploded_cell(current_cell_type)) {// bomb is exploded 
         int owner = bombs[i].owner;
         int range = bombs[i].explosion_range;
-	state.state.players[owner].remain_bomb_cnt++;
+	state.players[owner].remain_bomb_cnt++;
         bool damged = false;
 	//d == 0
 	{
 	  int player_y, player_x;
 	  for (int player_id = 0; player_id < GameRule::MAX_PLAYER_NUM; player_id++){
-	    if (state.state.players[player_id].is_dead())continue;
-	    player_y = state.state.players[player_id].y;
-	    player_x = state.state.players[player_id].x;
+	    if (state.players[player_id].is_dead())continue;
+	    player_y = state.players[player_id].y;
+	    player_x = state.players[player_id].x;
 	    if ((py == player_y and px == player_x)) {
-
-	      state.state.players[player_id].survival = false;
+	      state.players[player_id].survival = false;
 	    }
 	  }
 
@@ -538,16 +537,16 @@ private:
             ny = py + d * DY[k];
             if (not in_board(ny, nx))
               break;
-            int cell_type = state.state.board.get(ny, nx);
+            int cell_type = state.board.get(ny, nx);
 
 	{
 	  int player_y, player_x;
 	  for (int player_id = 0; player_id < GameRule::MAX_PLAYER_NUM; player_id++){
-	    if (state.state.players[player_id].is_dead())continue;
-	    player_y = state.state.players[player_id].y;
-	    player_x = state.state.players[player_id].x;
+	    if (state.players[player_id].is_dead())continue;
+	    player_y = state.players[player_id].y;
+	    player_x = state.players[player_id].x;
 	    if ((ny == player_y and nx == player_x)) {
-	      state.state.players[player_id].survival = false;
+	      state.players[player_id].survival = false;
 	    }
 	  }
 
@@ -560,7 +559,7 @@ private:
             if (on_object_cell(cell_type)) {
               if (on_any_box_cell(cell_type)){
 		//assert(state.state.players[owner].destroied_box_cnt >= 0);
-		state.state.players[owner].destroied_box_cnt += 1;
+		state.players[owner].destroied_box_cnt += 1;
 		  
 		destroyed_objects.emplace(make_pair(ny, nx));
               } else if (on_any_box_cell(cell_type)){
@@ -577,26 +576,26 @@ private:
       int y, x;
       x = val.second;
       y = val.first;
-      int cell_type = state.state.board.get(y, x);
+      int cell_type = state.board.get(y, x);
       if (cell_type == CellType::BOX_CELL or
           cell_type == CellType::ITEM_BOMB_RANGE_UP_CELL or
           cell_type == CellType::ITEM_BOMB_CNT_UP_CELL) { // EMPTY CELL
-        state.state.board.set(y, x, CellType::EMPTY_CELL);
+        state.board.set(y, x, CellType::EMPTY_CELL);
       } else if (cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL) {//box item  range up
-        state.state.board.set(y, x, CellType::ITEM_BOMB_RANGE_UP_CELL);
+        state.board.set(y, x, CellType::ITEM_BOMB_RANGE_UP_CELL);
       } else if (cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL) {//box item cnt up
-        state.state.board.set(y, x, CellType::ITEM_BOMB_CNT_UP_CELL);
+        state.board.set(y, x, CellType::ITEM_BOMB_CNT_UP_CELL);
       }
     }
     vector<Bomb> next_bombs;
     for (int i = 0; i < bombs.size(); i++) {
       int x = bombs[i].x;
       int y = bombs[i].y;
-      int cell_type = state.state.board.get(y, x);
+      int cell_type = state.board.get(y, x);
       if (on_bomb_cell(cell_type)) { // not exploded
         next_bombs.emplace_back(bombs[i]);
       } else { // exploed
-        state.state.board.set(y, x, CellType::EMPTY_CELL);
+        state.board.set(y, x, CellType::EMPTY_CELL);
       }
     }
     sort(next_bombs.begin(), next_bombs.end());
@@ -867,6 +866,13 @@ private:
     }
 
   }
+  //----------------------------data----------------------------------------------
+  int my_id;
+  StateInfo pre_state;
+  void update(){
+    simulate_bomb_explosion();
+  }
+  
 };
 
 int main() {
