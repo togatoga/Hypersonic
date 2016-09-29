@@ -166,6 +166,7 @@ public:
     my_id = myid;
     game_turn = 0;
     external_player_info.fill(0);
+    next_pos = make_pair(-1, -1);
     //-----------------------------init------------------------------------------
     while (true) {
       StateInfo input_info = input(true);
@@ -356,7 +357,9 @@ private:
 	  res.players[owner].survival = true;
 	  res.players[owner].sum_box_point = external_player_info[owner];//later update
 	  res.players[owner].max_bomb_cnt = param1;//later update
-
+	  if (owner == my_id){
+	    assert(next_pos.first == -1 or (next_pos.first == y and next_pos.second == x));
+	  }
       } else if (entityType == EntityType::BOMB) { // Bomb
 	res.players[owner].max_bomb_cnt++;
         res.bombs.emplace_back(Bomb(y, x, owner, param1, param2));
@@ -851,13 +854,17 @@ private:
       //assert(best.state.players[my_id].max_bomb_cnt >= 0 and best.state.players[my_id].max_bomb_cnt < 13);
       cerr << best.state.players[my_id].survival << " " << best.state.players[my_id].sum_box_point << " " << best.state.players[my_id].max_bomb_cnt << " " << best.state.players[my_id].explosion_range << " " << best.score << endl;
       output_act(best.first_act);
+      next_pos = make_pair(best.first_act.y, best.first_act.x);
     }else{
       cerr << "temp action" << endl;
       output_act(tmp_best_act);
+      next_pos = make_pair(tmp_best_act.y, tmp_best_act.x);
     }
     if (game_turn > 0)
       update_state(init_search_state.state);
   }
+  //dubug
+  pair<int, int> next_pos;
   //----------------------------data----------------------------------------------
   int my_id;
   int game_turn;
