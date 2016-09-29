@@ -662,12 +662,21 @@ private:
     score -= max({d0, d1, d2, d3});
     return score;
   }
-  void simulate_next_move(int id, const SearchState &state, const BitBoard &next_board,
+  void simulate_next_move_and_set_bomb(int id, const SearchState &state, const BitBoard &next_board,
                           priority_queue<SearchState> &search_states,
                           const int &turn) {
     if (state.state.players[id].is_dead())return ;
     const int px = state.state.players[id].x;
     const int py = state.state.players[id].y;
+    const int range = state.state.players[id].explosion_range;
+    
+    bool place_bomb = true;
+    if (state.state.players[id].get_remain_bomb_cnt() <= 0){
+      place_bomb = false;
+    }else if (state.state.board.get(py, px) ==
+        CellType::BOMB_CELL) { // already set bomb
+      place_bomb = false;
+    }
 
     for (int k = 0; k < 5; k++) {
       int nx = px + DX[k];
@@ -680,7 +689,7 @@ private:
           cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL or
           cell_type == CellType::WALL_CELL)
         continue;
-      if (k != 4) {
+      if (k != 4) {//can not move
         if (cell_type == CellType::BOMB_CELL or cell_type == CellType::BOMB_EXPLODED_CELL) {
           continue;
         }
@@ -697,15 +706,23 @@ private:
       }
       next_state.state.players[id].y = ny;
       next_state.state.players[id].x = nx;
+
+      //not set bombs
       if (turn == 0) {
-        next_state.first_act = Act(ny, nx, ACT_MOVE);
+	next_state.first_act = Act(ny, nx, ACT_MOVE);
       }
-      // simulate_bomb_explosion(next_state, turn);
       next_state.score = calc_score(id, state, next_state);
       search_states.emplace(next_state);
-      // visited.emplace(make_tuple(next_state.state.my_info,
-      // next_state.state.enemy_info, next_state.state.boxes,
-      // next_state.state.bombs));
+      if (place_bomb){
+	next_state.state.board.set(py, px, CellType::BOMB_CELL);
+	next_state.state.bombs.emplace_back(Bomb(py, px, id, 8, range));
+	next_state.state.players[id].remain_bomb_cnt--;
+	if (turn == 0) {
+	  next_state.first_act = Act(ny, nx, ACT_BOMB);
+	}
+	next_state.score = calc_score(id, state, next_state);
+	search_states.emplace(next_state);
+      }
     }
   }
   void simulate_next_set_bomb(int id, const SearchState &state, const BitBoard &next_board,
@@ -836,10 +853,10 @@ private:
 	  BitBoard next_board = simulate_bomb_explosion(curr_search_state.state, false);
           // next state
           // move
-	  simulate_next_move(my_id,curr_search_state, next_board, curr_search_states[turn + 1],
+	  simulate_next_move_and_set_bomb(my_id,curr_search_state, next_board, curr_search_states[turn + 1],
                              turn);
           // set bomb
-          simulate_next_set_bomb(my_id, curr_search_state, next_board, curr_search_states[turn + 1], turn);
+          //simulate_next_set_bomb(my_id, curr_search_state, next_board, curr_search_states[turn + 1], turn);
         }
         // cerr << "prune = " << prune_cnt << endl;
       }
