@@ -668,7 +668,7 @@ private:
     if (state.state.players[id].is_dead())return ;
     const int px = state.state.players[id].x;
     const int py = state.state.players[id].y;
-    const int range = state.state.players[id].explosion_range;
+
     
     bool place_bomb = true;
     if (state.state.players[id].get_remain_bomb_cnt() <= 0){
@@ -715,6 +715,7 @@ private:
       search_states.emplace(next_state);
       if (place_bomb){
 	next_state.state.board.set(py, px, CellType::BOMB_CELL);
+	const int range = next_state.state.players[id].explosion_range;
 	next_state.state.bombs.emplace_back(Bomb(py, px, id, 8, range));
 	next_state.state.players[id].remain_bomb_cnt--;
 	if (turn == 0) {
