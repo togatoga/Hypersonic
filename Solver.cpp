@@ -109,6 +109,14 @@ public:
   FastVector() {
     head = 0;
   }
+  FastVector(const FastVector& right) {
+    head = right.head;
+    for (int i = 0; i < head; i++){
+      data[i] = right.data[i];
+    }
+    
+  }
+  
   inline void clear(){
     head = 0;
   }
@@ -152,7 +160,30 @@ public:
     assert(0 <= i and i < head);
     return data[i];
   }
-
+  
+  inline bool operator == (const FastVector &right) const {
+    if (head != right.head){
+      return false;
+    }
+    for (int i = 0; i < head; i++){
+      if (data[i] != right[i]){
+	return false;
+      }
+    }
+    return true;
+  }
+  
+  inline bool operator < (const FastVector & right) const {
+    if (head != right.head){
+      return head < right.head;
+    }
+    for (int i = 0; i < head; i++){
+      if (data[i] != right[i]){
+	return data[i] < right[i];
+      }
+    }
+    return false;
+  };
   
 private:
   int head;
@@ -254,7 +285,37 @@ private:
       assert(explosion_range > 0);
       explosion_turn--;
     }
-    bool operator<(const Bomb &right) const {
+    inline bool operator != (const Bomb &right) const {
+      if (owner != right.owner) {
+        return true;
+      }
+      if (y != right.y) {
+        return true;
+      }
+      if (x != right.x) {
+        return true;
+      }
+      if (explosion_turn != right.explosion_turn) {
+        return true;
+      }
+      return false;
+    }
+    inline bool operator == (const Bomb &right) const {
+      if (owner != right.owner) {
+        return false;
+      }
+      if (y != right.y) {
+        return false;
+      }
+      if (x != right.x) {
+        return false;
+      }
+      if (explosion_turn != right.explosion_turn) {
+        return false;
+      }
+      return true;
+    }
+    inline bool operator<(const Bomb &right) const {
       if (owner != right.owner) {
         return owner < right.owner;
       }
@@ -314,10 +375,11 @@ private:
       return explosion_range < right.explosion_range;
     }
   };
+  using Bombs = FastVector<Bomb, 8 * 8 * 8 * 8>;
   using Player = array<PlayerInfo, GameRule::MAX_PLAYER_NUM>;
   struct StateInfo {
     BitBoard board;
-    vector<Bomb> bombs;
+    Bombs bombs;
     Player players;
     StateInfo() {}
   };
@@ -535,7 +597,7 @@ private:
     return;
   }
   BitBoard simulate_bomb_explosion(StateInfo &state, bool do_update = false) {
-    vector<Bomb> &bombs = state.bombs;
+    Bombs &bombs = state.bombs;
     map<pair<int, int>, int> mp_explosion_range;
     for (int i = 0; i < bombs.size(); i++) {
       bombs[i].dec_turn();
@@ -660,7 +722,7 @@ private:
     //     next_board.set(y, x, CellType::ITEM_BOMB_CNT_UP_CELL);
     //   }
     // }
-    vector<Bomb> next_bombs;
+    Bombs next_bombs;
     for (int i = 0; i < bombs.size(); i++) {
       int x = bombs[i].x;
       int y = bombs[i].y;
@@ -889,7 +951,7 @@ private:
     const int beam_width = 20;
     const int depth_limit = 20;
     priority_queue<SearchState> curr_search_states[depth_limit + 1];
-    set<tuple<Player, BitBoard, vector<Bomb>>> visited[depth_limit + 1];
+    set<tuple<Player, BitBoard, Bombs>> visited[depth_limit + 1];
 
     SearchState init_search_state;
     init_search_state.state = init_info;
