@@ -434,25 +434,15 @@ private:
   }
   
 
-  void simulate_bomb_inducing_explosion(const pair<int, int> exploded_key, const int range, bool occupied, const multimap<pair<int, int>, int> &multimp_explosion_range, BitBoard &board) {
+  void simulate_bomb_inducing_explosion(const pair<int, int> exploded_key, map<pair<int, int>, int> &mp_explosion_range, BitBoard &board) {
     int px = exploded_key.second;;
     int py = exploded_key.first;
     int cell_type = board.get(py, px);
     
     assert(in_board(py, px));
-    
     board.set(py, px, CellType::BOMB_EXPLODED_CELL);
     
-    //d ==0
-    if (occupied == false and multimp_explosion_range.count(make_pair(py, px)) > 1){//duplicated
-      auto iter_equal_range = multimp_explosion_range.equal_range(exploded_key);
-      for (auto it = iter_equal_range.first; it != iter_equal_range.second; it++){
-	simulate_bomb_inducing_explosion(it->first, it->second, true, multimp_explosion_range, board);
-      }
-      return ;
-    }
-    
-
+    int range = mp_explosion_range[make_pair(py, px)];
     //d > 1
     for (int k = 0; k < 4; k++) {
       for (int d = 1; d < range; d++) {
@@ -463,10 +453,7 @@ private:
           break;
 	int cell_type = board.get(ny , nx);
         if (on_bomb_cell(cell_type)){//inducing explosion
-	  auto iter_equal_range = multimp_explosion_range.equal_range(make_pair(ny, nx));
-	  pair<int, int> next_key = iter_equal_range.first->first;
-	  int next_range = iter_equal_range.first->second;
-	  simulate_bomb_inducing_explosion(next_key, next_range, true, multimp_explosion_range, board);
+	  simulate_bomb_inducing_explosion(make_pair(ny, nx),  mp_explosion_range, board);
 	  break;
 	}else if(on_object_cell(cell_type)){//exsist object
 	  break;
@@ -477,14 +464,14 @@ private:
   }
   void simulate_bomb_explosion(StateInfo &state, bool do_update = false) {
     vector<Bomb> &bombs = state.bombs;
-    multimap<pair<int, int>, int> multimp_explosion_range;
+    map<pair<int, int>, int> mp_explosion_range;
     for (int i = 0; i < bombs.size(); i++) {
       bombs[i].dec_turn();
       int x,y;
       x = bombs[i].x;
       y = bombs[i].y;
       int range = bombs[i].explosion_range;
-      multimp_explosion_range.emplace(make_pair(y, x), range);
+      mp_explosion_range[make_pair(y, x)] = max(mp_explosion_range[make_pair(y, x)], range);
     }
     
     for (int i = 0; i < bombs.size(); i++) {
@@ -494,8 +481,8 @@ private:
       int cell_type = state.board.get(y, x);
       if (bombs[i].is_explode() and on_bomb_cell(cell_type)) {
         // cerr << y << " " << x << endl;
-        simulate_bomb_inducing_explosion(make_pair(y, x),bombs[i].explosion_range, false,
-                                         multimp_explosion_range,
+        simulate_bomb_inducing_explosion(make_pair(y, x),
+                                         mp_explosion_range,
                                          state.board);
       }
     }
