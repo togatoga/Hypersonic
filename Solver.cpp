@@ -1,6 +1,6 @@
-#pragma GCC optimize("O3")
-#pragma GCC optimize("inline")
-#pragma GCC optimize("omit-frame-pointer")
+// #pragma GCC optimize("O3")
+// #pragma GCC optimize("inline")
+// #pragma GCC optimize("omit-frame-pointer")
 #include <algorithm>
 #include <array>
 #include <assert.h>
@@ -101,6 +101,68 @@ public:
 private:
   int64_t array[11];
 };
+
+
+template<typename T, int limit>
+class FastVector{
+public:
+  FastVector() {
+    head = 0;
+  }
+  inline void clear(){
+    head = 0;
+  }
+  inline bool empty() const{
+    return head == 0;
+  }
+  inline void push_back(const T & value) {
+    assert(0<= head and head < limit);
+    data[head] = value;
+    head++;
+  }
+  template<class... TyArgs> inline void emplace_back(TyArgs&&... args) {
+    assert(0<= head and head < limit);
+    ::new(&data[head])T(forward<TyArgs>(args)...);
+    head++;
+  }
+  inline int size() const {
+    return  head;
+  }
+  inline void resize(int n){
+    assert(0 <= n and n <= limit);
+    head = n;
+  }
+  inline T* begin(){
+    return data.begin();
+  }
+  inline T* end(){
+    return data.begin() + head;
+  }
+  inline const T *begin() const {
+    return data.begin();
+  }
+  inline const T* end() const {
+    return data.end() + head;
+  }
+  inline  T &operator[](int i){
+    assert(0 <= i and i < head);
+    return data[i];
+  }
+  inline const T &operator[](int i) const {
+    assert(0 <= i and i < head);
+    return data[i];
+  }
+
+  
+private:
+  int head;
+  array<T, limit> data;
+};
+
+
+
+
+
 /*
 ---------------------------Game Code---------------------------
 */
