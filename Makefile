@@ -7,6 +7,8 @@ all:$(SRC)
 
 test:$(SRC)
 	$(CXX) $(CXXFLAGS) $(SRC) -o Solver_test
+codingame:$(SRC)
+	$(CXX) $(SRC) -o Solver_codingame
 clean:
 	rm -f Solver
 	rm -f Solver_test
