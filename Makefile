@@ -12,3 +12,4 @@ codingame:$(SRC)
 clean:
 	rm -f Solver
 	rm -f Solver_test
+	rm -f Solver_codingame
