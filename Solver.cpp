@@ -145,11 +145,12 @@ public:
   inline T* end(){
     return data.begin() + head;
   }
+  
   inline const T *begin() const {
     return data.begin();
   }
   inline const T* end() const {
-    return data.end() + head;
+    return data.begin() + head;
   }
   inline  T &operator[](int i){
     assert(0 <= i and i < head);
@@ -376,7 +377,7 @@ private:
       return explosion_range < right.explosion_range;
     }
   };
-  using Bombs = FastVector<Bomb, 8 + 8 + 8 + 8>;
+  using Bombs = vector<Bomb>;
   using Player = array<PlayerInfo, GameRule::MAX_PLAYER_NUM>;
   struct StateInfo {
     BitBoard board;
@@ -486,9 +487,10 @@ private:
           assert(next_pos.first == -1 or
                  (next_pos.first == y and next_pos.second == x));
         }
+
       } else if (entityType == EntityType::BOMB) { // Bomb
         res.players[owner].max_bomb_cnt++;
-        res.bombs.emplace_back(Bomb(y, x, owner, param1, param2));
+        res.bombs.emplace_back(move(Bomb(y, x, owner, param1, param2)));
         res.board.set(y, x, CellType::BOMB_CELL);
       } else if (entityType == EntityType::ITEM) { // Item
                                                    // pass
@@ -705,24 +707,6 @@ private:
         }
       }
     }
-
-    // for (const auto &val : destroyed_objects) {
-    //   int y, x;
-    //   x = val.second;
-    //   y = val.first;
-    //   int cell_type = state.board.get(y, x);
-    //   if (cell_type == CellType::BOX_CELL or
-    //       cell_type == CellType::ITEM_BOMB_RANGE_UP_CELL or
-    //       cell_type == CellType::ITEM_BOMB_CNT_UP_CELL) { // EMPTY CELL
-    //     next_board.set(y, x, CellType::EMPTY_CELL);
-    //   } else if (cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL) {//box
-    //   item  range up
-    //     next_board.set(y, x, CellType::ITEM_BOMB_RANGE_UP_CELL);
-    //   } else if (cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL) {//box
-    //   item cnt up
-    //     next_board.set(y, x, CellType::ITEM_BOMB_CNT_UP_CELL);
-    //   }
-    // }
     Bombs next_bombs;
     for (int i = 0; i < bombs.size(); i++) {
       int x = bombs[i].x;
@@ -891,7 +875,7 @@ private:
     next_state.state.board = next_board;
 
     next_state.state.board.set(py, px, CellType::BOMB_CELL);
-    next_state.state.bombs.emplace_back(Bomb(py, px, id, 8, range));
+    next_state.state.bombs.emplace_back(move(Bomb(py, px, id, 8, range)));
     next_state.state.players[id].remain_bomb_cnt--;
     // next_state.state.board[py][px] = BOMB_CELL;
     if (turn == 0) {
