@@ -1,5 +1,5 @@
-// #pragma GCC optimize("O3")
-// #pragma GCC optimize("inline")
+//#pragma GCC optimize("O3")
+//#pragma GCC optimize("inline")
 // #pragma GCC optimize("omit-frame-pointer")
 #include <algorithm>
 #include <array>
@@ -114,7 +114,6 @@ public:
     for (int i = 0; i < head; i++){
       data[i] = right.data[i];
     }
-    
   }
   
   inline void clear(){
@@ -251,12 +250,14 @@ class Solver {
 public:
   Solver() {}
   void solve() {
+
     int width, height, myid;
     cin >> width >> height >> myid;
     assert(width == BOARD_WIDTH and height == BOARD_HEIGHT);
     cin.ignore();
     //-----------------------------init------------------------------------------
     my_id = myid;
+    game_timer.start();
     game_turn = 0;
     external_player_info.fill(0);
     next_pos = make_pair(-1, -1);
@@ -375,7 +376,7 @@ private:
       return explosion_range < right.explosion_range;
     }
   };
-  using Bombs = FastVector<Bomb, 8 * 8 * 8 * 8>;
+  using Bombs = FastVector<Bomb, 8 + 8 + 8 + 8>;
   using Player = array<PlayerInfo, GameRule::MAX_PLAYER_NUM>;
   struct StateInfo {
     BitBoard board;
@@ -904,12 +905,13 @@ private:
     int y, x;
     y = act.y;
     x = act.x;
+
     if (act.act_id == ACT_MOVE) {
       cout << "MOVE"
-           << " " << x << " " << y << endl;
+           << " " << x << " " << y << " " << game_timer.get_mill_duration() << " mill" << endl;
     } else {
       cout << "BOMB"
-           << " " << x << " " << y << endl;
+           << " " << x << " " << y << " " << game_timer.get_mill_duration() << " mill" << endl;
     }
   }
 
@@ -944,9 +946,9 @@ private:
   void think(const StateInfo &init_info) {
     // cerr << "--think--" << endl;
     // cerr << init_info.board[0][0] << endl;
-
     Timer timer;
     timer.start();
+
 
     const int beam_width = 20;
     const int depth_limit = 20;
@@ -1035,6 +1037,7 @@ private:
   //----------------------------data----------------------------------------------
   int my_id;
   int game_turn;
+  Timer game_timer;
   array<int, GameRule::MAX_PLAYER_NUM>
       external_player_info; // box point, max_bomb_cnt
   void debug_players_info(const Player &players) {
@@ -1073,6 +1076,7 @@ private:
 int main() {
   cin.tie(0);
   ios::sync_with_stdio(false);
+ 
   Solver solver;
   solver.solve();
 }
