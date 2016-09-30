@@ -1,6 +1,7 @@
-//#pragma GCC optimize("O3")
-//#pragma GCC optimize("inline")
-// #pragma GCC optimize("omit-frame-pointer")
+#pragma GCC optimize("O3")
+#pragma GCC optimize("inline")
+#pragma GCC optimize("omit-frame-pointer")
+
 #include <algorithm>
 #include <array>
 #include <assert.h>
@@ -1038,10 +1039,10 @@ private:
     for (int i = 0; i < GameRule::MAX_PLAYER_NUM; i++) {
       if (players[i].is_dead())
         continue;
-      cerr << "id = " << i << " sum_box_point = " << players[i].sum_box_point
-           << " max_bomb_cnt = " << players[i].max_bomb_cnt
-           << " explosion_range = " << players[i].explosion_range
-           << " remain_bomb_cnt = " << players[i].remain_bomb_cnt << endl;
+      cerr << "id = " << i << " sum_box_point = " << (int)players[i].sum_box_point
+           << " max_bomb_cnt = " << (int)players[i].max_bomb_cnt
+           << " explosion_range = " << (int)players[i].explosion_range
+           << " remain_bomb_cnt = " << (int)players[i].remain_bomb_cnt << endl;
     }
     cerr << "----------------------Player Info "
             "End----------------------------------------------"
