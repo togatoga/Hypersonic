@@ -18,6 +18,8 @@ using namespace std;
 /*
 --------------------------Template--------------------------
 */
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
 const int DX[] = {1, 0, -1, 0, 0}, DY[] = {0, -1, 0, 1, 0};
 
 class Timer {
@@ -63,8 +65,7 @@ public:
   inline int get(int y, int x) const {
     assert(0 <= y and y < 11);
     assert(0 <= x and x < 13);
-    int bit = (array[y] >> SHIFT_WIDTH[x]) & WIDTH_BIT[0];
-    return bit;
+    return (array[y] >> SHIFT_WIDTH[x]) & WIDTH_BIT[0];
   }
   inline void set(int y, int x, int kind) {
     assert(0 <= y and y < 11);
@@ -274,10 +275,10 @@ public:
 
 private:
   struct Bomb {
-    int x, y;
-    int owner;
-    int explosion_turn;
-    int explosion_range;
+    int8_t x, y;
+    int8_t owner;
+    int8_t explosion_turn;
+    int8_t explosion_range;
     Bomb() {}
     Bomb(int y, int x, int owner, int explosion_turn, int explosion_range)
         : y(y), x(x), owner(owner), explosion_turn(explosion_turn),
@@ -335,14 +336,14 @@ private:
   };
 
   struct PlayerInfo {
-    int x, y;
-    int max_bomb_cnt;
+    int8_t x, y;
+    int8_t max_bomb_cnt;
 
-    int remain_bomb_cnt;
-    int explosion_range;
+    int8_t remain_bomb_cnt;
+    int8_t explosion_range;
 
     // determine winner player
-    int sum_box_point;
+    int8_t sum_box_point;
     bool survival;
     PlayerInfo() { survival = false; }
     // PlayerInfo(int y, int x, bool survival, int sum_box_point, int
@@ -355,7 +356,7 @@ private:
     bool is_dead() const { return not survival; }
 
     bool can_set_bomb() { return remain_bomb_cnt >= 1; }
-    int get_remain_bomb_cnt() const { return remain_bomb_cnt; }
+    int8_t get_remain_bomb_cnt() const { return remain_bomb_cnt; }
 
     bool operator<(const PlayerInfo &right) const {
       if (y != right.y) {
@@ -741,9 +742,9 @@ private:
     score *= 100;
 
     score += 20 * (search_state.state.players[id].sum_box_point);
-    score += 3 * (min(13, search_state.state.players[id].explosion_range) - 3);
-    score += 3 * (min(7, search_state.state.players[id].max_bomb_cnt) - 1);
-    score += (min(7, search_state.state.players[id].remain_bomb_cnt));
+    score += 3 * (MIN(13, (int)search_state.state.players[id].explosion_range) - 3);
+    score += 3 * (MIN(7, (int)search_state.state.players[id].max_bomb_cnt) - 1);
+    score += (MIN(7, (int)search_state.state.players[id].remain_bomb_cnt));
 
     score *= 100;
     // score += 4 * (search_state.state.players[id].explosion_range - 3);
@@ -778,14 +779,20 @@ private:
     // penlaty corner
     // upper left 0 0
     int d0, d1, d2, d3;
+    int res = 0;
     d0 = abs(px - 0) + abs(py - 0);
+    res = MAX(res, d0);
     // upper right BOARD_HEIGHH - 1, 0
     d1 = abs(px - (BOARD_WIDTH - 1)) + abs(py - 0);
+    res = MAX(res, d1);
     // lower left
     d2 = abs(px - 0) + abs(py - (BOARD_HEIGHT - 1));
+    res = MAX(res, d2);
     // lower right
     d3 = abs(px - (BOARD_WIDTH - 1)) + abs(py - (BOARD_HEIGHT - 1));
-    score -= max({d0, d1, d2, d3});
+    res = MAX(res, d3);
+    score -= res;
+    //score -= max({d0, d1, d2, d3});
     return score;
   }
   void simulate_next_move_and_set_bomb(
@@ -1001,10 +1008,10 @@ private:
       SearchState best = curr_search_states[depth_limit].top();
       // assert(best.state.players[my_id].max_bomb_cnt >= 0 and
       // best.state.players[my_id].max_bomb_cnt < 13);
-      cerr << best.state.players[my_id].survival << " "
-           << best.state.players[my_id].sum_box_point << " "
-           << best.state.players[my_id].max_bomb_cnt << " "
-           << best.state.players[my_id].explosion_range << " " << best.score
+      cerr << (int)best.state.players[my_id].survival << " "
+           << (int)best.state.players[my_id].sum_box_point << " "
+           << (int)best.state.players[my_id].max_bomb_cnt << " "
+           << (int)best.state.players[my_id].explosion_range << " " << best.score
            << endl;
       output_act(best.first_act);
       next_pos = make_pair(best.first_act.y, best.first_act.x);
