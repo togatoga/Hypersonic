@@ -786,7 +786,7 @@ private:
       if (state.state.curr_game_player_num == 1){
 	
       }else if (state.state.curr_game_turn < GameRule::MAX_TURN){//turn over
-	int my_sum_box_point = 0;
+	int8_t my_sum_box_point = state.state.players[my_id].sum_box_point;
 	for (int i = 0; i < game_player_num; i++){
 	  if (i == my_id)continue;
 	  if (state.state.players[i].is_dead())continue;
@@ -871,7 +871,7 @@ private:
       const int px = state.state.players[player_id].x;
       const int py = state.state.players[player_id].y;
       const int range = state.state.players[player_id].explosion_range;
-      bool place_bomb = xor128() % 2;
+      bool place_bomb = false;
       int next_dir = xor128() % 5;
       const int cell_type = state.state.board.get(py, px);
       if (state.state.players[player_id].get_remain_bomb_cnt() <= 0) {
@@ -986,7 +986,7 @@ private:
     double playout_score = 0;
     double worst_score = 1e30;
     vector<pair<int, Act>> worst_enemy_actions;
-    for (int iter = 0; iter < 0; iter++){
+    for (int iter = 0; iter < 5; iter++){
       pair<vector<pair<int, Act>>, double> res;
       res = playout(pre_state, search_state, turn);
       playout_score += res.second;
@@ -995,12 +995,8 @@ private:
 	worst_enemy_actions = move(res.first);
       }
     }
-    //simulate_enemy_worst_actions
     simulate_enemy_worst_actions(worst_enemy_actions, pre_state, search_state);
-    score += playout_score;
-    
-    score *= 100;
-
+    score += playout_score * 0.1;
     
     score += 20 * (search_state.state.players[id].sum_box_point);
     score += 3 * (MIN(13, (int)search_state.state.players[id].explosion_range) - 3);
@@ -1109,12 +1105,12 @@ private:
       if (turn == 0) {
         next_state.first_act = Act(ny, nx, ACT_MOVE);
       }
-      next_state.score = calc_score(id, state, next_state, turn);
-      search_states.emplace(next_state);
-
-
+      SearchState next_move_state = next_state;
+      next_move_state.score = calc_score(id, state, next_move_state, turn);
+      search_states.emplace(next_move_state);
       
       if (place_bomb) {
+	SearchState next_bomb_state = move(next_state);
         next_state.state.board.set(py, px, CellType::BOMB_CELL);
         next_state.state.bombs.emplace_back(Bomb(py, px, id, 8, range));
         next_state.state.players[id].remain_bomb_cnt--;
