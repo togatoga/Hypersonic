@@ -726,51 +726,189 @@ private:
     return next_board;
   }
 
-  bool is_game_end(){
-
-
+  bool is_game_end(const SearchState &state, int curr_game_turn){
+    if (curr_game_turn >= GameRule::MAX_TURN)return true;
     
     return false;
   }
   double calc_playout_score(const StateInfo &state){
+
+    
+
+
+    
     return 1141514;
   }
-  double playout(const SearchState &search_state, int turn){
+
+
+
+  vector<pair<int, Act>> simulate_lazy_enemy_move_and_set_bomb(const SearchState &pre_state, SearchState &next_state){
+
+
+    vector<pair<int, Act>> enemy_actions;
+    for (int player_id = 0; player_id < GameRule::MAX_PLAYER_NUM; player_id++){//
+      if (player_id == my_id)continue;
+      if (pre_state.state.players[player_id].is_dead())continue;
+      const int px = pre_state.state.players[player_id].x;
+      const int py = pre_state.state.players[player_id].y;
+      const int range = pre_state.state.players[player_id].explosion_range;
+      bool place_bomb = xor128() % 2;
+      int next_dir = xor128() % 5;
+      const int cell_type = pre_state.state.board.get(py, px);
+      if (pre_state.state.players[player_id].get_remain_bomb_cnt() <= 0) {
+	place_bomb = false;
+      } else if (cell_type == 
+		 CellType::BOMB_CELL) { // already set bomb
+	place_bomb = false;
+      }
+      int nx = px + DX[next_dir];
+      int ny = py + DY[next_dir];
+      if (not in_board(ny, nx)){//
+	nx = px;
+	ny = py;
+      }
+
+      int move_cell_type = pre_state.state.board.get(ny, nx);
+      if (move_cell_type == CellType::BOX_CELL or
+          move_cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL or
+          move_cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL or
+          move_cell_type == CellType::WALL_CELL){
+	nx = px;
+	ny = py;
+	move_cell_type = cell_type;
+      }else if (next_dir != 4) { // can not move
+        if (move_cell_type == CellType::BOMB_CELL or
+            move_cell_type == CellType::BOMB_EXPLODED_CELL) {
+	  nx = px;
+	  ny = py;
+	  move_cell_type = cell_type;
+        }
+      }
+      //item get
+      if (move_cell_type == CellType::ITEM_BOMB_RANGE_UP_CELL) {
+        next_state.state.players[player_id].explosion_range++;
+        next_state.state.board.set(ny, nx, CellType::EMPTY_CELL);
+      } else if (move_cell_type == CellType::ITEM_BOMB_CNT_UP_CELL) {
+        next_state.state.players[player_id].max_bomb_cnt += 1;
+        next_state.state.players[player_id].remain_bomb_cnt += 1;
+        next_state.state.board.set(ny, nx, CellType::EMPTY_CELL);
+      }
+      next_state.state.players[player_id].y = ny;
+      next_state.state.players[player_id].x = nx;
+      if (place_bomb){
+	next_state.state.board.set(py, px, CellType::BOMB_CELL);
+	next_state.state.bombs.emplace_back(Bomb(py, px, player_id, 8, range));
+	sort(next_state.state.bombs.begin(), next_state.state.bombs.end());
+	next_state.state.players[player_id].remain_bomb_cnt--;
+      }
+      enemy_actions.emplace_back(make_pair(player_id, Act(ny, nx, place_bomb ? ACT_BOMB : ACT_MOVE)));
+    }
+    return enemy_actions;
+  }
+
+  void simulate_MC_play(SearchState &state, BitBoard &next_board){
+    for (int player_id = 0; player_id < GameRule::MAX_PLAYER_NUM; player_id++){
+      if (state.state.players[player_id].is_dead())continue;
+      const int px = state.state.players[player_id].x;
+      const int py = state.state.players[player_id].y;
+      const int range = state.state.players[player_id].explosion_range;
+      bool place_bomb = xor128() % 2;
+      int next_dir = xor128() % 5;
+      const int cell_type = state.state.board.get(py, px);
+      if (state.state.players[player_id].get_remain_bomb_cnt() <= 0) {
+	place_bomb = false;
+      } else if (cell_type == 
+		 CellType::BOMB_CELL) { // already set bomb
+	place_bomb = false;
+      }
+      int nx = px + DX[next_dir];
+      int ny = py + DY[next_dir];
+      if (not in_board(ny, nx)){//
+	nx = px;
+	ny = py;
+      }
+      int move_cell_type = state.state.board.get(ny, nx);
+      if (move_cell_type == CellType::BOX_CELL or
+          move_cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL or
+          move_cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL or
+          move_cell_type == CellType::WALL_CELL){
+	nx = px;
+	ny = py;
+	move_cell_type = cell_type;
+      }else if (next_dir != 4) { // can not move
+        if (move_cell_type == CellType::BOMB_CELL or
+            move_cell_type == CellType::BOMB_EXPLODED_CELL) {
+	  nx = px;
+	  ny = py;
+	  move_cell_type = cell_type;
+        }
+      }
+      //item get
+      if (move_cell_type == CellType::ITEM_BOMB_RANGE_UP_CELL) {
+        state.state.players[player_id].explosion_range++;
+        next_board.set(ny, nx, CellType::EMPTY_CELL);
+      } else if (move_cell_type == CellType::ITEM_BOMB_CNT_UP_CELL) {
+        state.state.players[player_id].max_bomb_cnt += 1;
+        state.state.players[player_id].remain_bomb_cnt += 1;
+        next_board.set(ny, nx, CellType::EMPTY_CELL);
+      }
+      state.state.players[player_id].y = ny;
+      state.state.players[player_id].x = nx;
+      if (place_bomb){
+	next_board.set(py, px, CellType::BOMB_CELL);
+	state.state.bombs.emplace_back(Bomb(py, px, player_id, 8, range));
+	sort(state.state.bombs.begin(), state.state.bombs.end());
+	state.state.players[player_id].remain_bomb_cnt--;
+      }
+    }
+    state.state.board = next_board;
+
+    
+    return ;
+  }
+
+  
+  pair<vector<pair<int, Act>>, double> playout(const SearchState &pre_state, const SearchState &next_state, int turn){
     int curr_game_turn = turn + curr_game_turn;
     BitBoard next_board;
-    SearchState playout_state = search_state;
+    SearchState playout_state = next_state;
+    //lazy enemy move
+    vector<pair<int, Act>> enemy_actions = simulate_lazy_enemy_move_and_set_bomb(pre_state, playout_state);
+    curr_game_turn++;
     while (true){
-      if (is_game_end())break;
+      if (is_game_end(playout_state, curr_game_turn))break;
       next_board = simulate_bomb_explosion(playout_state.state, false);
-
+      simulate_MC_play(playout_state, next_board);
       curr_game_turn++;
-
     }
-
-    return calc_playout_score(playout_state.state);
+    return make_pair(enemy_actions, calc_playout_score(playout_state.state));
   }
   double calc_score(int id, const SearchState &pre_state,
-                    const SearchState &search_state) {
+                    const SearchState &search_state, int turn) {
     double score = 0;
     const int px = search_state.state.players[id].x;
     const int py = search_state.state.players[id].y;
     const int range = search_state.state.players[id].explosion_range;
-    // score += 6 * (search_state.my_box_point -
-    // pre_state.my_box_point);
-
-    // death penalty
-    // cerr << "unko" << endl;
+    
     if (search_state.state.players[id].is_dead()) {
       score -= 1e30;
     }
     score *= 100;
 
     //playout
-    // double playout_score = 0;
-    // for (int iter = 0; iter < 50; iter++){
-    //   playout_score += playout(search_state);
-    // }
-    
+    double playout_score = 0;
+    double worst_score = 1e30;
+    vector<pair<int, Act>> worst_enemty_actions;
+     for (int iter = 0; iter < 50; iter++){
+       pair<vector<pair<int, Act>>, double> res;
+       res = playout(pre_state, search_state, turn);
+       playout_score += res.second;
+       if (res.second < worst_score){
+	 worst_score = res.second;
+	 worst_enemty_actions = move(res.first);
+       }
+     }
+     //enemy move
 
     
     score += 20 * (search_state.state.players[id].sum_box_point);
@@ -836,6 +974,8 @@ private:
     const int py = state.state.players[id].y;
     const int range = state.state.players[id].explosion_range;
     bool place_bomb = true;
+
+    
     if (state.state.players[id].get_remain_bomb_cnt() <= 0) {
       place_bomb = false;
     } else if (state.state.board.get(py, px) ==
@@ -877,7 +1017,12 @@ private:
       if (turn == 0) {
         next_state.first_act = Act(ny, nx, ACT_MOVE);
       }
-      next_state.score = calc_score(id, state, next_state);
+      
+      next_state.score = calc_score(id, state, next_state, turn);
+      //lazy enemy move
+
+
+      
       search_states.emplace(next_state);
       if (place_bomb) {
         next_state.state.board.set(py, px, CellType::BOMB_CELL);
@@ -888,43 +1033,14 @@ private:
         if (turn == 0) {
           next_state.first_act = Act(ny, nx, ACT_BOMB);
         }
-        next_state.score = calc_score(id, state, next_state);
+        next_state.score = calc_score(id, state, next_state, turn);
+	//lazy enemy move
+	
         search_states.emplace(next_state);
       }
     }
   }
-  void simulate_next_set_bomb(int id, const SearchState &state,
-                              const BitBoard &next_board,
-                              priority_queue<SearchState> &search_states,
-                              const int &turn) {
-    if (state.state.players[id].is_dead())
-      return;
-    if (state.state.players[id].get_remain_bomb_cnt() <= 0)
-      return;
 
-    const int px = state.state.players[id].x;
-    const int py = state.state.players[id].y;
-    const int range = state.state.players[id].explosion_range;
-    if (state.state.board.get(py, px) ==
-        CellType::BOMB_CELL) { // already set bomb
-      return;
-    }
-
-    SearchState next_state = state;
-
-    next_state.state.board = next_board;
-
-    next_state.state.board.set(py, px, CellType::BOMB_CELL);
-    next_state.state.bombs.emplace_back(move(Bomb(py, px, id, 8, range)));
-    next_state.state.players[id].remain_bomb_cnt--;
-    // next_state.state.board[py][px] = BOMB_CELL;
-    if (turn == 0) {
-      next_state.first_act = Act(py, px, ACT_BOMB);
-    }
-    // simulate_bomb_explosion(next_state, turn);
-    next_state.score = calc_score(id, state, next_state);
-    search_states.emplace(next_state);
-  }
   void output_act(const Act &act) {
     int y, x;
     y = act.y;
