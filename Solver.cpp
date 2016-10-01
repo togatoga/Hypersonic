@@ -209,15 +209,15 @@ private:
 // 5 item_box(bomb_cnt) cell
 // 6 wall cell
 namespace CellType {
-const int EMPTY_CELL = 0;
-const int BOX_CELL = 1;
-const int BOMB_CELL = 2;
-const int BOMB_EXPLODED_CELL = 3;
-const int ITEM_BOMB_RANGE_UP_CELL = 4;
-const int BOX_ITEM_BOMB_RANGE_UP_CELL = 5;
-const int ITEM_BOMB_CNT_UP_CELL = 6;
-const int BOX_ITEM_BOMB_CNT_UP_CELL = 7;
-const int WALL_CELL = 8;
+const int8_t EMPTY_CELL = 0;
+const int8_t BOX_CELL = 1;
+const int8_t BOMB_CELL = 2;
+const int8_t BOMB_EXPLODED_CELL = 3;
+const int8_t ITEM_BOMB_RANGE_UP_CELL = 4;
+const int8_t BOX_ITEM_BOMB_RANGE_UP_CELL = 5;
+const int8_t ITEM_BOMB_CNT_UP_CELL = 6;
+const int8_t BOX_ITEM_BOMB_CNT_UP_CELL = 7;
+const int8_t WALL_CELL = 8;
 }
 namespace GameRule {
 
@@ -737,7 +737,87 @@ private:
     bombs = move(next_bombs);
     return next_board;
   }
+  bool is_surrouned_bombs(int id, const SearchState &search_state){
+    const int8_t x = search_state.state.players[id].x;
+    const int8_t y = search_state.state.players[id].y;
+    int8_t surround_cnt = 0;
+    if (y % 2 == 0){//
+      if (x % 2 == 0){
+	//right up left down
+	for (int i = 0; i < 4; i++){
+	  const int8_t ny = y + DY[i];
+	  const int8_t nx = x + DX[i];
+	  if (not in_board(ny, nx)){
+	    surround_cnt++;
+	    continue;
+	  }
+	  const int8_t cell_type = search_state.state.board.get(ny, nx);
 
+	  if (cell_type == CellType::BOMB_CELL or cell_type == CellType::WALL_CELL){
+	    surround_cnt++;
+	  }else{
+	    break;
+	  }
+	}
+	return surround_cnt >= 4;
+      }else{
+	//right
+	const int8_t right_x = x + DX[0];
+	const int8_t right_y = y + DY[0];
+	if (not in_board(right_y, right_x)){
+	  surround_cnt++;
+	}else{
+	  int8_t cell_type = search_state.state.board.get(right_y, right_x);
+	  if (cell_type == CellType::BOMB_CELL or cell_type == CellType::WALL_CELL){
+	    surround_cnt++;
+	  }
+	}
+
+	//left
+	const int8_t left_x = x + DX[2];
+	const int8_t left_y = y + DY[2];
+	if (not in_board(right_y, right_x)){
+	  surround_cnt++;
+	}else{
+	  int8_t cell_type = search_state.state.board.get(left_y, left_x);
+	  if (cell_type == CellType::BOMB_CELL or cell_type == CellType::WALL_CELL){
+	    surround_cnt++;
+	  }
+	}
+	return surround_cnt >= 2;
+      }
+    }else{
+      if (x % 2 == 0){
+	//upper lower
+	const int8_t upper_x = x + DX[0];
+	const int8_t upper_y = y + DY[0];
+	if (not in_board(upper_y, upper_x)){
+	  surround_cnt++;
+	}else{
+	  int8_t cell_type = search_state.state.board.get(upper_y, upper_x);
+	  if (cell_type == CellType::BOMB_CELL or cell_type == CellType::WALL_CELL){
+	    surround_cnt++;
+	  }
+	}
+
+	//lower
+	const int8_t lower_x = x + DX[3];
+	const int8_t lower_y = y + DY[3];
+	if (not in_board(lower_y, lower_x)){
+	  surround_cnt++;
+	}else{
+	  int8_t cell_type = search_state.state.board.get(lower_y, lower_x);
+	  if (cell_type == CellType::BOMB_CELL or cell_type == CellType::WALL_CELL){
+	    surround_cnt++;
+	  }
+	}
+	return surround_cnt >= 2;
+      }
+
+    }
+
+    return false;
+  }
   double calc_score(int id, const SearchState &pre_state,
                     const SearchState &search_state) {
     double score = 0;
@@ -754,11 +834,18 @@ private:
     }
     score *= 100;
 
+    //
+    
+    
+
+
+
+    
     score += 20 * (search_state.state.players[id].sum_box_point);
     score += 3 * (MIN(13, (int)search_state.state.players[id].explosion_range) - 3);
     score += 3 * (MIN(7, (int)search_state.state.players[id].max_bomb_cnt) - 1);
     score += (MIN(7, (int)search_state.state.players[id].remain_bomb_cnt));
-
+    
     score *= 100;
     // score += 4 * (search_state.state.players[id].explosion_range - 3);
     // score += 4 * (search_state.state.players[id].max_bomb_cnt - 1);
@@ -858,7 +945,9 @@ private:
       search_states.emplace(next_state);
       if (place_bomb) {
         next_state.state.board.set(py, px, CellType::BOMB_CELL);
-
+	if (is_surrouned_bombs(id, next_state)){
+	  continue;
+	}
         next_state.state.bombs.emplace_back(Bomb(py, px, id, 8, range));
 	//sort(next_state.state.bombs.begin(), next_state.state.bombs.end());
         next_state.state.players[id].remain_bomb_cnt--;
