@@ -581,8 +581,8 @@ private:
   }
 
   void
-  simulate_bomb_inducing_explosion(const pair<int, int> exploded_key,
-                                   map<pair<int, int>, int> &mp_explosion_range,
+  simulate_bomb_inducing_explosion(const pair<int8_t, int8_t> exploded_key,
+                                   map<pair<int8_t, int8_t>, int8_t> &mp_explosion_range,
                                    BitBoard &board) {
     int px = exploded_key.second;
     ;
@@ -615,15 +615,15 @@ private:
   }
   BitBoard simulate_bomb_explosion(StateInfo &state, bool do_update = false) {
     Bombs &bombs = state.bombs;
-    map<pair<int, int>, int> mp_explosion_range;
+    map<pair<int8_t, int8_t>, int8_t> mp_explosion_range;
     for (int i = 0; i < bombs.size(); i++) {
       bombs[i].dec_turn();
-      int x, y;
+      int8_t x, y;
       x = bombs[i].x;
       y = bombs[i].y;
       int range = bombs[i].explosion_range;
       mp_explosion_range[make_pair(y, x)] =
-          max(mp_explosion_range[make_pair(y, x)], range);
+          MAX(mp_explosion_range[make_pair(y, x)], range);
     }
 
     for (int i = 0; i < bombs.size(); i++) {
@@ -773,13 +773,9 @@ private:
         if (cell_type == CellType::BOX_CELL or
             cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL or
             cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL) {
-          // if (search_state.state.future_destroied_boxes.count(make_pair(y,
-          // x)) >
-          //     0)
-          //   continue;
           int dist = abs(px - x) + abs(py - y);
           active_boxes_cnt++;
-          min_dist = min(min_dist, dist);
+          min_dist = MIN(min_dist, dist);
           sum_man_dist += dist;
         }
       }
