@@ -209,15 +209,15 @@ private:
 // 5 item_box(bomb_cnt) cell
 // 6 wall cell
 namespace CellType {
-const int EMPTY_CELL = 0;
-const int BOX_CELL = 1;
-const int BOMB_CELL = 2;
-const int BOMB_EXPLODED_CELL = 3;
-const int ITEM_BOMB_RANGE_UP_CELL = 4;
-const int BOX_ITEM_BOMB_RANGE_UP_CELL = 5;
-const int ITEM_BOMB_CNT_UP_CELL = 6;
-const int BOX_ITEM_BOMB_CNT_UP_CELL = 7;
-const int WALL_CELL = 8;
+  const int EMPTY_CELL = 0;
+  const int BOX_CELL = 1;
+  const int BOMB_CELL = 2;
+  const int BOMB_EXPLODED_CELL = 3;
+  const int ITEM_BOMB_RANGE_UP_CELL = 4;
+  const int BOX_ITEM_BOMB_RANGE_UP_CELL = 5;
+  const int ITEM_BOMB_CNT_UP_CELL = 6;
+  const int BOX_ITEM_BOMB_CNT_UP_CELL = 7;
+  const int WALL_CELL = 8;
 }
 namespace GameRule {
 
@@ -727,13 +727,27 @@ private:
   }
 
   bool is_game_end(){
+
+
+    
     return false;
   }
-  
-  double playout(const SearchState &search_state){
+  double calc_playout_score(const StateInfo &state){
+    return 1141514;
+  }
+  double playout(const SearchState &search_state, int turn){
+    int curr_game_turn = turn + curr_game_turn;
+    BitBoard next_board;
+    SearchState playout_state = search_state;
     while (true){
+      if (is_game_end())break;
+      next_board = simulate_bomb_explosion(playout_state.state, false);
+
+      curr_game_turn++;
 
     }
+
+    return calc_playout_score(playout_state.state);
   }
   double calc_score(int id, const SearchState &pre_state,
                     const SearchState &search_state) {
