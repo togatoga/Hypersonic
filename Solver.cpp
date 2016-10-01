@@ -953,7 +953,11 @@ private:
     // cerr << init_info.board[0][0] << endl;
     Timer timer;
     timer.start();
-
+    if (game_turn > 0){
+      SearchState update_search_state;
+      update_search_state.state = init_info;
+      update_state(update_search_state.state);
+    }
 
     const int beam_width = 20;
     const int depth_limit = 20;
@@ -962,24 +966,27 @@ private:
 
     SearchState init_search_state;
     init_search_state.state = init_info;
-    // print players info
-
+    for (int i = 0; i < GameRule::MAX_PLAYER_NUM; i++){
+      if (init_search_state.state.players[i].is_dead())continue;
+      init_search_state.state.players[i].sum_box_point = external_player_info[i];
+    }
     debug_players_info(init_search_state.state.players);
-
     curr_search_states[0].emplace(init_search_state);
     Act tmp_best_act;
     pair<int, double> tmp_best(0, 0);
     int chokudai_iter = 0;
     int prune_cnt = 0;
+    int output_depth = 0;
     while (timer.get_mill_duration() <= 85) {
       chokudai_iter++;
       for (int turn = 0; turn < depth_limit; turn++) {
-        // cerr << curr_search_states[turn].size() << endl;
+	if (turn + game_turn >= GameRule::MAX_TURN)break;
         for (int iter = 0;
              iter < beam_width and (not curr_search_states[turn].empty());
              iter++) {
-          if (timer.get_mill_duration() >= 85)
+          if (timer.get_mill_duration() >= 85){
             goto END;
+	  }
           SearchState curr_search_state = curr_search_states[turn].top();
           curr_search_states[turn].pop();
 	  sort(curr_search_state.state.bombs.begin(), curr_search_state.state.bombs.end());
@@ -1006,23 +1013,19 @@ private:
           // move
           simulate_next_move_and_set_bomb(my_id, curr_search_state, next_board,
                                           curr_search_states[turn + 1], turn);
-          // set bomb
-          // simulate_next_set_bomb(my_id, curr_search_state, next_board,
-          // curr_search_states[turn + 1], turn);
+
         }
-        // cerr << "prune = " << prune_cnt << endl;
+	output_depth = MAX(output_depth, turn + 1);
       }
-      // break;
     }
   END:;
     // cerr << prune_cnt << endl;
     // cerr << curr_search_states[depth_limit].size() << endl;
-    cerr << chokudai_iter++ << endl;
-    if (not curr_search_states[depth_limit].empty() and
-        curr_search_states[depth_limit].top().score > 0) {
-      SearchState best = curr_search_states[depth_limit].top();
-      // assert(best.state.players[my_id].max_bomb_cnt >= 0 and
-      // best.state.players[my_id].max_bomb_cnt < 13);
+    cerr << chokudai_iter++ << " " << (int)output_depth << endl;
+    if (not curr_search_states[output_depth].empty() and
+        curr_search_states[output_depth].top().score > 0) {
+      SearchState best = curr_search_states[output_depth].top();
+
       cerr << (int)best.state.players[my_id].survival << " "
            << (int)best.state.players[my_id].sum_box_point << " "
            << (int)best.state.players[my_id].max_bomb_cnt << " "
@@ -1035,8 +1038,7 @@ private:
       output_act_by_cho_search(tmp_best_act, chokudai_iter);
       next_pos = make_pair(tmp_best_act.y, tmp_best_act.x);
     }
-    if (game_turn > 0)
-      update_state(init_search_state.state);
+
   }
   
   array<int, GameRule::MAX_PLAYER_NUM>
