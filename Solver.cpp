@@ -264,6 +264,7 @@ public:
     game_turn = 0;
     external_player_info.fill(0);
     next_pos = make_pair(-1, -1);
+    game_player_num = -1;
     //-----------------------------init------------------------------------------
     while (true) {
       StateInfo input_info = input(true);
@@ -345,6 +346,7 @@ private:
 
     // determine winner player
     int8_t sum_box_point;
+    int8_t dead_turn;
     bool survival;
     PlayerInfo() { survival = false; }
     // PlayerInfo(int y, int x, bool survival, int sum_box_point, int
@@ -369,7 +371,9 @@ private:
       if (survival != right.survival) {
         return survival < right.survival;
       }
-
+      if (dead_turn != right.dead_turn){
+	return dead_turn < right.dead_turn;
+      }
       if (remain_bomb_cnt != right.remain_bomb_cnt) {
         return remain_bomb_cnt < right.remain_bomb_cnt;
       }
@@ -385,7 +389,12 @@ private:
     BitBoard board;
     Bombs bombs;
     Player players;
-    StateInfo() {}
+    int8_t curr_game_player_num;
+    int16_t curr_game_turn;
+    StateInfo() {
+      curr_game_player_num = 0;
+      curr_game_turn = 0;
+    }
   };
 
   struct Act {
@@ -461,9 +470,8 @@ private:
       cerr << entities << endl;
     }
     cin.ignore();
-    // cerr << "my_id = "  << my_id << endl;
-    // cerr << entities << endl;
 
+    int curr_game_player_num = 0;
     for (int i = 0; i < entities; i++) {
       int entityType;
       int owner;
@@ -489,7 +497,7 @@ private:
           assert(next_pos.first == -1 or
                  (next_pos.first == y and next_pos.second == x));
         }
-
+	curr_game_player_num++;
       } else if (entityType == EntityType::BOMB) { // Bomb
         res.players[owner].max_bomb_cnt++;
         res.bombs.emplace_back(move(Bomb(y, x, owner, param1, param2)));
@@ -503,13 +511,23 @@ private:
         }
       }
     }
+    res.curr_game_player_num = curr_game_player_num;
+    if (game_player_num == -1){
+      game_player_num = curr_game_player_num;
+    }
+    for (int i = 0; i < game_player_num; i++){
+      if (res.players[i].is_survive()){
+	res.players[i].dead_turn = -1;
+      }else{
+	res.players[i].dead_turn = player_dead_turns[i];
+      }
+    }
+
+      
     if (verbose) {
       res.board.debug();
     }
-    //sort(res.bombs.begin(), res.bombs.end());
-    // cerr << res.my_info.y << " " << res.my_info.x << endl;
-    // cerr << "my_id = " << my_id << endl;
-
+    
     cerr
         << "----------------------------Input End------------------------------"
         << endl;
@@ -627,6 +645,7 @@ private:
     }
 
     BitBoard next_board = state.board;
+    int player_num = state.curr_game_turn;
     for (int i = 0; i < bombs.size(); i++) {
       const int px = bombs[i].x;
       const int py = bombs[i].y;
@@ -646,6 +665,12 @@ private:
             player_x = state.players[player_id].x;
             if ((py == player_y and px == player_x)) {
               state.players[player_id].survival = false;
+	      state.players[player_id].dead_turn = state.curr_game_turn;
+		
+		
+	      if (do_update) { // dead turn
+		player_dead_turns[player_id] = state.curr_game_turn;
+	      }
             }
           }
         }
@@ -658,8 +683,7 @@ private:
             ny = py + d * DY[k];
             if (not in_board(ny, nx))
               break;
-            int old_cell_type = next_board.get(ny, nx);
-
+            int old_cell_type = state.board.get(ny, nx);
             // Attack Player
             {
               int player_y, player_x;
@@ -671,6 +695,11 @@ private:
                 player_x = state.players[player_id].x;
                 if ((ny == player_y and nx == player_x)) {
                   state.players[player_id].survival = false;
+		  state.players[player_id].dead_turn = state.curr_game_turn;
+
+		  if (do_update) { // dead tur
+		    player_dead_turns[player_id] = state.curr_game_turn;
+		  }
                 }
               }
             }
@@ -726,18 +755,48 @@ private:
     return next_board;
   }
 
-  bool is_game_end(const SearchState &state, int curr_game_turn){
-    if (curr_game_turn >= GameRule::MAX_TURN)return true;
-    
+  bool is_game_end(const SearchState &state){
+    if (state.state.curr_game_turn >= GameRule::MAX_TURN)return true;//turn over
+    if (state.state.players[my_id].is_dead())return true;//killed
+    if (state.state.curr_game_player_num == 1 and state.state.players[my_id].is_survive())return true;//win
+    if (state.state.curr_game_player_num <= 0)return true;// all killed
     return false;
   }
-  double calc_playout_score(const StateInfo &state){
-
-    
-
-
-    
-    return 1141514;
+  double calc_playout_score(const SearchState &state){
+    assert(is_game_end(state));
+    int score = game_player_num;//
+    if (state.state.players[my_id].is_dead()){//dead
+      int my_dead_turn = state.state.players[my_id].dead_turn;
+      int my_sum_box_point = state.state.players[my_id].sum_box_point;
+      for (int i = 0; i < game_player_num; i++){
+	if (i == my_id)continue;
+	if (state.state.players[i].is_survive()){
+	  score--;
+	}else{
+	  if (my_dead_turn < state.state.players[i].dead_turn){
+	    score--;
+	  }else if(score == state.state.players[i].dead_turn){
+	    if (my_sum_box_point < state.state.players[i].sum_box_point){
+	      score--;
+	    }
+	  }
+	}
+      }
+    }else{//alive
+      if (state.state.curr_game_player_num == 1){
+	
+      }else if (state.state.curr_game_turn < GameRule::MAX_TURN){//turn over
+	int my_sum_box_point = 0;
+	for (int i = 0; i < game_player_num; i++){
+	  if (i == my_id)continue;
+	  if (state.state.players[i].is_dead())continue;
+	  if (my_sum_box_point < state.state.players[i].sum_box_point){
+	    score--;
+	  }
+	}
+      }
+    }
+    return score;
   }
 
 
@@ -869,27 +928,55 @@ private:
 
   
   pair<vector<pair<int, Act>>, double> playout(const SearchState &pre_state, const SearchState &next_state, int turn){
-    int curr_game_turn = turn + curr_game_turn;
+    //int curr_game_turn = turn + curr_game_turn;
     BitBoard next_board;
     SearchState playout_state = next_state;
     //lazy enemy move
     vector<pair<int, Act>> enemy_actions = simulate_lazy_enemy_move_and_set_bomb(pre_state, playout_state);
-    curr_game_turn++;
+    playout_state.state.curr_game_turn++;
     while (true){
-      if (is_game_end(playout_state, curr_game_turn))break;
+      if (is_game_end(playout_state))break;
       next_board = simulate_bomb_explosion(playout_state.state, false);
       simulate_MC_play(playout_state, next_board);
-      curr_game_turn++;
+      playout_state.state.curr_game_turn++;
     }
-    return make_pair(enemy_actions, calc_playout_score(playout_state.state));
+    return make_pair(enemy_actions, calc_playout_score(playout_state));
+  }
+
+  void simulate_enemy_worst_actions(vector<pair<int, Act>> &actions, const SearchState &pre_state, SearchState &next_state){
+    for (int i = 0; i < actions.size(); i++){
+      int id = actions[i].first;
+      Act act = actions[i].second;
+      assert(id != my_id);
+      const int nx = act.x;
+      const int ny = act.y;
+      const int act_id = act.act_id;
+      const int range = next_state.state.players[id].explosion_range;
+      int cell_type = pre_state.state.board.get(ny, nx);
+      if (cell_type == CellType::ITEM_BOMB_RANGE_UP_CELL) {
+        next_state.state.players[id].explosion_range++;
+        next_state.state.board.set(ny, nx, CellType::EMPTY_CELL);
+      } else if (cell_type == CellType::ITEM_BOMB_CNT_UP_CELL) {
+        next_state.state.players[id].max_bomb_cnt += 1;
+        next_state.state.players[id].remain_bomb_cnt += 1;
+        next_state.state.board.set(ny, nx, CellType::EMPTY_CELL);
+      }
+      next_state.state.players[id].y = ny;
+      next_state.state.players[id].x = nx;
+      if (act_id == ACT_BOMB){
+	next_state.state.board.set(ny, nx, CellType::BOMB_CELL);
+        next_state.state.bombs.emplace_back(Bomb(ny, nx, id, 8, range));
+        next_state.state.players[id].remain_bomb_cnt--;
+      }
+    }
   }
   double calc_score(int id, const SearchState &pre_state,
-                    const SearchState &search_state, int turn) {
+                    SearchState &search_state, int turn) {
     double score = 0;
     const int px = search_state.state.players[id].x;
     const int py = search_state.state.players[id].y;
     const int range = search_state.state.players[id].explosion_range;
-    
+    //cerr << "unko" << endl;
     if (search_state.state.players[id].is_dead()) {
       score -= 1e30;
     }
@@ -898,17 +985,21 @@ private:
     //playout
     double playout_score = 0;
     double worst_score = 1e30;
-    vector<pair<int, Act>> worst_enemty_actions;
-     for (int iter = 0; iter < 50; iter++){
-       pair<vector<pair<int, Act>>, double> res;
-       res = playout(pre_state, search_state, turn);
-       playout_score += res.second;
-       if (res.second < worst_score){
-	 worst_score = res.second;
-	 worst_enemty_actions = move(res.first);
-       }
-     }
-     //enemy move
+    vector<pair<int, Act>> worst_enemy_actions;
+    for (int iter = 0; iter < 0; iter++){
+      pair<vector<pair<int, Act>>, double> res;
+      res = playout(pre_state, search_state, turn);
+      playout_score += res.second;
+      if (res.second < worst_score){
+	worst_score = res.second;
+	worst_enemy_actions = move(res.first);
+      }
+    }
+    //simulate_enemy_worst_actions
+    simulate_enemy_worst_actions(worst_enemy_actions, pre_state, search_state);
+    score += playout_score;
+    
+    score *= 100;
 
     
     score += 20 * (search_state.state.players[id].sum_box_point);
@@ -924,23 +1015,24 @@ private:
     int min_dist = (BOARD_HEIGHT + BOARD_WIDTH + 1);
     int active_boxes_cnt = 0;
 
-    for (int y = 0; y < BOARD_HEIGHT; y++) {
-      for (int x = 0; x < BOARD_WIDTH; x++) {
-        int cell_type = search_state.state.board.get(y, x);
-        if (cell_type == CellType::BOX_CELL or
-            cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL or
-            cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL) {
-          // if (search_state.state.future_destroied_boxes.count(make_pair(y,
-          // x)) >
-          //     0)
-          //   continue;
-          int dist = abs(px - x) + abs(py - y);
-          active_boxes_cnt++;
-          min_dist = min(min_dist, dist);
-          sum_man_dist += dist;
-        }
-      }
-    }
+    // for (int y = 0; y < BOARD_HEIGHT; y++) {
+    //   for (int x = 0; x < BOARD_WIDTH; x++) {
+    //     int cell_type = search_state.state.board.get(y, x);
+    //     if (cell_type == CellType::BOX_CELL or
+    //         cell_type == CellType::BOX_ITEM_BOMB_RANGE_UP_CELL or
+    //         cell_type == CellType::BOX_ITEM_BOMB_CNT_UP_CELL) {
+    //       // if (search_state.state.future_destroied_boxes.count(make_pair(y,
+    //       // x)) >
+    //       //     0)
+    //       //   continue;
+    //       int dist = abs(px - x) + abs(py - y);
+    //       active_boxes_cnt++;
+    //       min_dist = min(min_dist, dist);
+    //       sum_man_dist += dist;
+    //     }
+    //   }
+    // }
+    
     score += 12 * ((BOARD_HEIGHT + BOARD_WIDTH) - min_dist);
     score += (BOARD_HEIGHT + BOARD_WIDTH) * (active_boxes_cnt)-sum_man_dist;
     score *= 100;
@@ -1017,41 +1109,36 @@ private:
       if (turn == 0) {
         next_state.first_act = Act(ny, nx, ACT_MOVE);
       }
-      
       next_state.score = calc_score(id, state, next_state, turn);
-      //lazy enemy move
-
-
-      //sort(search_states.state.bombs.begin(), search_state.state.bombs.end());
       search_states.emplace(next_state);
+
+
+      
       if (place_bomb) {
         next_state.state.board.set(py, px, CellType::BOMB_CELL);
-
         next_state.state.bombs.emplace_back(Bomb(py, px, id, 8, range));
-	//sort(next_state.state.bombs.begin(), next_state.state.bombs.end());
         next_state.state.players[id].remain_bomb_cnt--;
         if (turn == 0) {
           next_state.first_act = Act(ny, nx, ACT_BOMB);
         }
         next_state.score = calc_score(id, state, next_state, turn);
-	//lazy enemy move
 	
         search_states.emplace(next_state);
       }
     }
   }
 
-  void output_act(const Act &act) {
+  void output_act(const Act &act, int iter) {
     int y, x;
     y = act.y;
     x = act.x;
 
     if (act.act_id == ACT_MOVE) {
       cout << "MOVE"
-           << " " << x << " " << y << " " << game_timer.get_mill_duration() << " mill" << endl;
+           << " " << x << " " << y << " " << iter << endl;
     } else {
       cout << "BOMB"
-           << " " << x << " " << y << " " << game_timer.get_mill_duration() << " mill" << endl;
+           << " " << x << " " << y << " " << iter << endl;
     }
   }
   void think(const StateInfo &init_info) {
@@ -1059,8 +1146,8 @@ private:
     // cerr << init_info.board[0][0] << endl;
     Timer timer;
     timer.start();
-    const int beam_width = 20;
-    const int depth_limit = 20;
+    const int beam_width = 10;
+    const int depth_limit = 13;
     priority_queue<SearchState> curr_search_states[depth_limit + 1];
     set<tuple<Player, BitBoard, Bombs>> visited[depth_limit + 1];
 
@@ -1132,11 +1219,11 @@ private:
            << (int)best.state.players[my_id].max_bomb_cnt << " "
            << (int)best.state.players[my_id].explosion_range << " " << best.score
            << endl;
-      output_act(best.first_act);
+      output_act(best.first_act, chokudai_iter);
       next_pos = make_pair(best.first_act.y, best.first_act.x);
     } else {
       cerr << "temp action" << endl;
-      output_act(tmp_best_act);
+      output_act(tmp_best_act, chokudai_iter);
       next_pos = make_pair(tmp_best_act.y, tmp_best_act.x);
     }
     if (game_turn > 0)
@@ -1148,8 +1235,12 @@ private:
   int my_id;
   int game_turn;
   Timer game_timer;
+  int game_player_num;
   array<int, GameRule::MAX_PLAYER_NUM>
       external_player_info; // box point, max_bomb_cnt
+  array<int, GameRule::MAX_PLAYER_NUM> player_dead_turns;
+  
+
   void debug_players_info(const Player &players) {
     cerr << "----------------------Player Info "
             "Start----------------------------------------------"
