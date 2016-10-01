@@ -515,7 +515,7 @@ private:
     if (verbose) {
       res.board.debug();
     }
-    sort(res.bombs.begin(), res.bombs.end());
+    //sort(res.bombs.begin(), res.bombs.end());
     // cerr << res.my_info.y << " " << res.my_info.x << endl;
     // cerr << "my_id = " << my_id << endl;
 
@@ -733,7 +733,7 @@ private:
         next_board.set(y, x, CellType::EMPTY_CELL);
       }
     }
-    sort(next_bombs.begin(), next_bombs.end());
+    //sort(next_bombs.begin(), next_bombs.end());
     bombs = move(next_bombs);
     return next_board;
   }
@@ -864,7 +864,7 @@ private:
         next_state.state.board.set(py, px, CellType::BOMB_CELL);
 
         next_state.state.bombs.emplace_back(Bomb(py, px, id, 8, range));
-	sort(next_state.state.bombs.begin(), next_state.state.bombs.end());
+	//sort(next_state.state.bombs.begin(), next_state.state.bombs.end());
         next_state.state.players[id].remain_bomb_cnt--;
         if (turn == 0) {
           next_state.first_act = Act(ny, nx, ACT_BOMB);
@@ -982,6 +982,7 @@ private:
             goto END;
           SearchState curr_search_state = curr_search_states[turn].top();
           curr_search_states[turn].pop();
+	  sort(curr_search_state.state.bombs.begin(), curr_search_state.state.bombs.end());
           auto key = make_tuple(curr_search_state.state.players,
                                 curr_search_state.state.board,
                                 curr_search_state.state.bombs);
