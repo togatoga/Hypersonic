@@ -726,6 +726,15 @@ private:
     return next_board;
   }
 
+  bool is_game_end(){
+    return false;
+  }
+  
+  double playout(const SearchState &search_state){
+    while (true){
+
+    }
+  }
   double calc_score(int id, const SearchState &pre_state,
                     const SearchState &search_state) {
     double score = 0;
@@ -742,6 +751,14 @@ private:
     }
     score *= 100;
 
+    //playout
+    // double playout_score = 0;
+    // for (int iter = 0; iter < 50; iter++){
+    //   playout_score += playout(search_state);
+    // }
+    
+
+    
     score += 20 * (search_state.state.players[id].sum_box_point);
     score += 3 * (MIN(13, (int)search_state.state.players[id].explosion_range) - 3);
     score += 3 * (MIN(7, (int)search_state.state.players[id].max_bomb_cnt) - 1);
@@ -907,42 +924,11 @@ private:
            << " " << x << " " << y << " " << game_timer.get_mill_duration() << " mill" << endl;
     }
   }
-
-  void count_ACT_BOMB(priority_queue<SearchState> curr_search_states,
-                      int turn) {
-    int cnt = 0;
-    while (not curr_search_states.empty()) {
-      SearchState state = curr_search_states.top();
-      curr_search_states.pop();
-      if (state.first_act.act_id == ACT_BOMB) {
-        cnt++;
-      }
-    }
-    // cerr << "turn = "<< turn << " " << "ACT_BOMB = " << cnt << endl;
-  }
-  void
-  count_duplicated_first_ACT(priority_queue<SearchState> curr_search_states,
-                             int turn) {
-    map<Act, int> count;
-    while (not curr_search_states.empty()) {
-      SearchState state = curr_search_states.top();
-      curr_search_states.pop();
-      count[state.first_act]++;
-    }
-    cerr << "---turn = " << turn << endl;
-    for (const auto &val : count) {
-      cerr << val.first.y << " " << val.first.x << " " << val.first.act_id
-           << " " << val.second << endl;
-    }
-    cerr << "--------------------------------" << endl;
-  }
   void think(const StateInfo &init_info) {
     // cerr << "--think--" << endl;
     // cerr << init_info.board[0][0] << endl;
     Timer timer;
     timer.start();
-
-
     const int beam_width = 20;
     const int depth_limit = 20;
     priority_queue<SearchState> curr_search_states[depth_limit + 1];
@@ -959,10 +945,14 @@ private:
     pair<int, double> tmp_best(0, 0);
     int chokudai_iter = 0;
     int prune_cnt = 0;
+
+    int output_depth = 0;
     while (timer.get_mill_duration() <= 85) {
       chokudai_iter++;
       for (int turn = 0; turn < depth_limit; turn++) {
-        // cerr << curr_search_states[turn].size() << endl;
+	if (turn + game_turn >= GameRule::MAX_TURN){//game end
+	  break;
+	}
         for (int iter = 0;
              iter < beam_width and (not curr_search_states[turn].empty());
              iter++) {
@@ -978,7 +968,6 @@ private:
             // prune_cnt++;
             continue;
           }
-
           auto tmp_score = make_pair(turn, curr_search_state.score);
           if (tmp_score > tmp_best) {
             tmp_best = tmp_score;
@@ -993,23 +982,19 @@ private:
           // move
           simulate_next_move_and_set_bomb(my_id, curr_search_state, next_board,
                                           curr_search_states[turn + 1], turn);
-          // set bomb
-          // simulate_next_set_bomb(my_id, curr_search_state, next_board,
-          // curr_search_states[turn + 1], turn);
+	  output_depth = MAX(turn + 1, output_depth);
         }
-        // cerr << "prune = " << prune_cnt << endl;
+
       }
       // break;
     }
   END:;
-    // cerr << prune_cnt << endl;
-    // cerr << curr_search_states[depth_limit].size() << endl;
-    cerr << chokudai_iter++ << endl;
-    if (not curr_search_states[depth_limit].empty() and
-        curr_search_states[depth_limit].top().score > 0) {
-      SearchState best = curr_search_states[depth_limit].top();
-      // assert(best.state.players[my_id].max_bomb_cnt >= 0 and
-      // best.state.players[my_id].max_bomb_cnt < 13);
+
+    cerr << chokudai_iter++ << " " << output_depth << endl;
+    if (not curr_search_states[output_depth].empty() and
+        curr_search_states[output_depth].top().score > 0) {
+      SearchState best = curr_search_states[output_depth].top();
+
       cerr << (int)best.state.players[my_id].survival << " "
            << (int)best.state.players[my_id].sum_box_point << " "
            << (int)best.state.players[my_id].max_bomb_cnt << " "
