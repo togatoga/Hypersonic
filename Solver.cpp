@@ -1005,9 +1005,9 @@ private:
     }
     SearchState base_state = state;
     BitBoard base_board = next_board;
-    if (turn == 0){
-       all_enemy_set_bomb(base_state, base_board);
-    }
+    // if (turn == 0){
+    //    all_enemy_set_bomb(base_state, base_board);
+    // }
     for (int player_id = 0; player_id < GameRule::MAX_PLAYER_NUM; player_id++){
       if (base_state.state.players[player_id].is_dead())continue;
       base_state.state.players[player_id].remain_bomb_cnt += recover_bomb_cnt[player_id];
