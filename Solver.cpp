@@ -1098,7 +1098,7 @@ private:
 	    best_act = next_state.first_act;
 	  }
 	  //debug
-	  search_states.emplace(next_state);
+	  //search_states.emplace(next_state);
 	}
 	
       }
@@ -1184,8 +1184,8 @@ private:
       update_state(update_search_state.state);
     }
 
-    const int beam_width = 20;
-    const int depth_limit = 20;
+    const int beam_width = 25;
+    const int depth_limit = 25;
     priority_queue<SearchState> curr_search_states[depth_limit + 1];
     set<tuple<Player, BitBoard, Bombs>> visited[depth_limit + 1];
 
@@ -1261,7 +1261,7 @@ private:
   END:;
     cerr << "iter = " << chokudai_iter << endl;
     if (best_act.is_valid()){
-      SearchState best = curr_search_states[output_depth].top();
+      //SearchState best = curr_search_states[output_depth].top();
       
       // assert(best.first_act.y == best_act.y);
       // assert(best.first_act.x == best_act.x);
@@ -1274,8 +1274,8 @@ private:
       //      << (int)best.state.players[my_id].max_bomb_cnt << " "
       //      << (int)best.state.players[my_id].explosion_range << " " << best.score
       //      << endl;
-      output_act_by_cho_search(best.first_act, chokudai_iter);
-      next_pos = make_pair(best.first_act.y, best.first_act.x);
+      output_act_by_cho_search(best_act, chokudai_iter);
+      next_pos = make_pair(best_act.y, best_act.x);
       
     } else {
       cerr << "temp action" << endl;
