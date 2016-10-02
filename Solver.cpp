@@ -985,7 +985,7 @@ private:
   }
   
   void simulate_next_move_and_set_bomb(
-      int id, const SearchState &state, BitBoard &next_board,
+      int id, const SearchState &state, const BitBoard &next_board,
       priority_queue<SearchState> &search_states, const int &turn) {
     
     if (state.state.players[id].is_dead())
@@ -1057,9 +1057,9 @@ private:
         next_state.state.board.set(py, px, CellType::BOMB_CELL);
 	const int8_t pre_cell = base_board.get(py, px);
 	base_board.set(py, px, CellType::BOMB_CELL);
-	if (is_surrouned_bombs(py, px, base_board)){
-	  continue;
-	}
+	// if (is_surrouned_bombs(py, px, base_board)){
+	//   continue;
+	// }
 	base_board.set(py, px, pre_cell);
 	
 	next_state.state.explosion_turn_board.set(py, px, 8);
