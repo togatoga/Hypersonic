@@ -1170,7 +1170,7 @@ private:
     }
 
     const int beam_width = 20;
-    const int depth_limit = 15;
+    const int depth_limit = 20;
     priority_queue<SearchState> curr_search_states[depth_limit + 1];
     set<tuple<Player, BitBoard, Bombs>> visited[depth_limit + 1];
 
