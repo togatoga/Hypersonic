@@ -1149,8 +1149,8 @@ private:
     if (not curr_search_states[output_depth].empty() and
         curr_search_states[output_depth].top().score > 0) {
       SearchState best = curr_search_states[output_depth].top();
-      best.state.board.debug();
-      best.state.explosion_turn_board.debug();
+      //best.state.board.debug();
+      //best.state.explosion_turn_board.debug();
       cerr << (int)best.state.players[my_id].survival << " "
            << (int)best.state.players[my_id].sum_box_point << " "
            << (int)best.state.players[my_id].max_bomb_cnt << " "
