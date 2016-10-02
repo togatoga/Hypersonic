@@ -882,10 +882,23 @@ private:
     // death penalty
     // cerr << "unko" << endl;
     if (search_state.state.players[id].is_dead()) {
-      score -= 1e30;
+      score -= 1e10;
     }
     score *= 100;
-    
+
+
+    for (int player_id = 0; player_id < GameRule::MAX_PLAYER_NUM; player_id++){
+      if (player_id == my_id or search_state.state.players[player_id].is_dead())continue;
+      const int x = search_state.state.players[player_id].x;
+      const int y = search_state.state.players[player_id].y;
+      int dist = abs(px - x) + abs(py - y);
+      if (dist <= 2){
+	score -= 1e5;
+      }
+    }
+    score *= 100;
+
+
     score += 20 * (search_state.state.players[id].sum_box_point);
     score += 3 * (MIN(13, (int)search_state.state.players[id].explosion_range) - 3);
     score += 3 * (MIN(7, (int)search_state.state.players[id].max_bomb_cnt) - 1);
@@ -937,7 +950,7 @@ private:
     return score;
   }
 
-
+  
   double calc_score_escape_mode(int id, const SearchState &pre_state,
                     const SearchState &search_state) {
     double score = 0;
