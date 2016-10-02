@@ -247,19 +247,6 @@ const int ACT_MOVE = 0;
 const int ACT_BOMB = 1;
 
 
-
-
-namespace MCTS{
-  const int MAX_NODE = 0;
-  const int MAX_PLAY_OUT_CNT = 20;
-  const int MAX_DEPTH_LIMIT = 2;
-}
-
-
-
-
-
-
 class Solver {
 
 public:
@@ -278,6 +265,7 @@ public:
     next_pos = make_pair(-1, -1);
     game_player_num = -1;
     curr_player_num = 0;
+    escape_mode = false;
     //-----------------------------init------------------------------------------
     while (true) {
       StateInfo input_info = input(true);
@@ -454,6 +442,7 @@ private:
             "Start------------------------------"
          << endl;
     cerr << BOARD_WIDTH << " " << BOARD_HEIGHT << " " << my_id << endl;
+    int box_cnt = 0;
     for (int i = 0; i < BOARD_HEIGHT; i++) {
       string row;
       if (!(cin >> row)) {
@@ -468,18 +457,26 @@ private:
           res.board.set(i, j, CellType::EMPTY_CELL);
         } else if (row[j] == '0') { // box
           res.board.set(i, j, CellType::BOX_CELL);
+	  box_cnt++;
         } else if (row[j] == '1') { // item BOMB_RANGE_UP
           res.board.set(i, j,
                         CellType::BOX_ITEM_BOMB_RANGE_UP_CELL); // temporary set
+	  box_cnt++;
         } else if (row[j] == '2') { // item BOMB_CNT_UP
           res.board.set(i, j,
                         CellType::BOX_ITEM_BOMB_CNT_UP_CELL); // temporary set
+	  box_cnt++;
         } else if (row[j] == 'X') {
           res.board.set(i, j, CellType::WALL_CELL); // temporary set
         }
       }
     }
 
+
+
+
+
+    
     int entities;
     cin >> entities;
     if (verbose) {
@@ -549,6 +546,33 @@ private:
     if (game_player_num == -1){
       game_player_num = curr_player_num;
     }
+
+    //winner or loser 
+    //winner or loser
+    if (not escape_mode){
+      if (box_cnt == 0){
+	escape_mode = true;
+      }else{
+	int my_sum_box_point = external_player_info[my_id];
+	bool update_escape_mode = true;
+	for (int i = 0; i < GameRule::MAX_PLAYER_NUM; i++){
+	  if (i == my_id or res.players[i].is_dead()){
+	    continue;
+	  }
+	  int sum_box_point = external_player_info[i];
+	  if (sum_box_point + box_cnt > my_sum_box_point){
+	    update_escape_mode = false;
+	    break;
+	  }
+	}
+	if (update_escape_mode){
+	  escape_mode = true;
+	}
+      }
+    }
+      
+
+    
     return res;
   }
 
@@ -909,6 +933,45 @@ private:
     //score -= max({d0, d1, d2, d3});
     return score;
   }
+
+
+  double calc_score_escape_mode(int id, const SearchState &pre_state,
+                    const SearchState &search_state) {
+    double score = 0;
+    const int px = search_state.state.players[id].x;
+    const int py = search_state.state.players[id].y;
+    const int range = search_state.state.players[id].explosion_range;
+   
+    if (search_state.state.players[id].is_dead()) {
+      score -= 1e30;
+    }
+    score *= 100;
+    
+    const Bombs &bombs = search_state.state.bombs;
+    const Player &players = search_state.state.players;
+    for (int i = 0; i < bombs.size(); i++){
+      const int x = bombs[i].x;
+      const int y = bombs[i].y;
+      const int range = bombs[i].explosion_range;
+      const int explosion_turn = bombs[i].explosion_turn;
+      int man_dist = abs(px - x) + abs(py - y);
+      int risk1 = (9 - explosion_turn);
+      int risk2 = (MIN(13, range) - range);
+      int risk3 = abs(px - x) + abs(py - y);
+      score -= risk3 * (risk1 + risk2);
+    }
+    for (int i = 0; i < players.size(); i++){
+      if (id == i or players[i].is_dead())continue;
+      const int x = players[i].x;
+      const int y = players[i].y;
+      score += (BOARD_HEIGHT + BOARD_WIDTH) - (abs(px - x) + abs(py - y));
+    }
+    
+    return score;
+  }
+
+
+  
   void simulate_next_move_and_set_bomb(
       int id, const SearchState &state, const BitBoard &next_board,
       priority_queue<SearchState> &search_states, const int &turn) {
@@ -961,7 +1024,13 @@ private:
       if (turn == 0) {
         next_state.first_act = Act(ny, nx, ACT_MOVE);
       }
-      next_state.score = calc_score(id, state, next_state);
+      if (not escape_mode){
+	next_state.score = calc_score(id, state, next_state);
+      }else{//calc escape mode
+	next_state.score = calc_score_escape_mode(id, state, next_state);
+      }
+
+    
       search_states.emplace(next_state);
       
       if (place_bomb) {
@@ -989,7 +1058,11 @@ private:
           next_state.first_act = Act(ny, nx, ACT_BOMB);
 	  
         }
-        next_state.score = calc_score(id, state, next_state);
+	if (not escape_mode){
+	  next_state.score = calc_score(id, state, next_state);
+	}else{
+	  next_state.score = calc_score_escape_mode(id, state, next_state);
+	}
         search_states.emplace(next_state);
       }
     }
@@ -1207,6 +1280,7 @@ private:
   int curr_player_num;
   int game_turn;
   Timer game_timer;
+  bool escape_mode;
   //----------------------------data----------------------------------------------
 
 };
