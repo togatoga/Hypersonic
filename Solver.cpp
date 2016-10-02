@@ -402,6 +402,9 @@ private:
       x = -1;
       act_id = -1;
     }
+    bool is_valid(){
+      return x != -1 and y != -1 and act_id != -1;
+    }
     Act(int8_t y, int8_t x, int8_t act_id) : y(y), x(x), act_id(act_id) {}
     bool operator<(const Act &right) const {
       if (y != right.y) {
@@ -986,7 +989,7 @@ private:
   
   void simulate_next_move_and_set_bomb(
       int id, const SearchState &state, const BitBoard &next_board,
-      priority_queue<SearchState> &search_states, const int &turn) {
+      priority_queue<SearchState> &search_states, const int &turn, const int output_depth) {
     
     if (state.state.players[id].is_dead())
       return;
@@ -1050,9 +1053,18 @@ private:
 	next_state.score = calc_score_escape_mode(id, state, next_state);
       }
 
-    
-      search_states.emplace(next_state);
-      
+      if (turn + 1 < output_depth){
+	  search_states.emplace(next_state);
+	}else{
+	  if (next_state.score > best_score){
+	    best_score = next_state.score;
+	    best_act = next_state.first_act;
+	  }
+	  //assert(false);
+	  //debug
+	  //search_states.emplace(next_state);
+	}
+	
       if (place_bomb) {
         next_state.state.board.set(py, px, CellType::BOMB_CELL);
 	const int8_t pre_cell = base_board.get(py, px);
@@ -1077,7 +1089,18 @@ private:
 	}else{
 	  next_state.score = calc_score_escape_mode(id, state, next_state);
 	}
-        search_states.emplace(next_state);
+        //search_states.emplace(next_state);
+	if (turn + 1 < output_depth){
+	  search_states.emplace(next_state);
+	}else{
+	  if (next_state.score > best_score){
+	    best_score = next_state.score;
+	    best_act = next_state.first_act;
+	  }
+	  //debug
+	  search_states.emplace(next_state);
+	}
+	
       }
     }
   }
@@ -1145,13 +1168,10 @@ private:
       const int y = bombs[i].y;
       const int range = bombs[i].explosion_range;
       const int cell_explosion_turn = explosion_turn_board.get(y, x);
-      //assert(cell_explosion_turn > 0);
       //update
       bombs[i].explosion_turn = cell_explosion_turn;
       explosion_turn_board.set(y, x, cell_explosion_turn);
     }    
-    // cerr << "--after propagated--"<< endl;
-    // explosion_turn_board.debug();
     
     return ;
   }
@@ -1182,12 +1202,22 @@ private:
     int chokudai_iter = 0;
     int prune_cnt = 0;
     int output_depth = 0;
-
-
+    cerr << "game_turn = " << game_turn << endl;
+    if (game_turn + depth_limit >= GameRule::MAX_TURN){
+      output_depth = GameRule::MAX_TURN - game_turn;
+    }else{
+      output_depth = depth_limit;
+    }
+    //cerr << "output_depth" << " " << output_depth << endl;
+    best_score = -1e100;
+    best_act.y = -1;
+    best_act.x = -1;
+    best_act.act_id = -1;
     while (game_timer.get_mill_duration() <= 85) {
       chokudai_iter++;
       for (int turn = 0; turn < depth_limit; turn++) {
 	if (turn + game_turn >= GameRule::MAX_TURN)break;
+	assert(turn <= output_depth);
         for (int iter = 0;
              iter < beam_width and (not curr_search_states[turn].empty());
              iter++) {
@@ -1197,10 +1227,6 @@ private:
           SearchState curr_search_state = curr_search_states[turn].top();
           curr_search_states[turn].pop();
 	  sort(curr_search_state.state.bombs.begin(), curr_search_state.state.bombs.end());
-
-	  //estimate propagate decrease
-	  //init
-	  
           auto key = make_tuple(curr_search_state.state.players,
                                 curr_search_state.state.board,
                                 curr_search_state.state.bombs);
@@ -1219,29 +1245,28 @@ private:
             tmp_best_act = curr_search_state.first_act;
           }
 
-	  
 	  simulate_propagated_remain_turn(curr_search_state.state.bombs, curr_search_state.state.explosion_turn_board, curr_search_state.state.board);
-
           BitBoard next_board =
               simulate_bomb_explosion(curr_search_state.state, false);
-          // next state
+
           // move
           simulate_next_move_and_set_bomb(my_id, curr_search_state, next_board,
-                                          curr_search_states[turn + 1], turn);
+                                          curr_search_states[turn + 1], turn, output_depth);
 
         }
-	output_depth = MAX(output_depth, turn + 1);
+	//output_depth = MAX(output_depth, turn + 1);
       }
       //break;
     }
   END:;
-    // cerr << prune_cnt << endl;
-    // cerr << curr_search_states[depth_limit].size() << endl;
-    cerr << chokudai_iter++ << " " << (int)output_depth << endl;
-    //placed_bomb = false;
-    if (not curr_search_states[output_depth].empty() and
-        curr_search_states[output_depth].top().score > 0) {
+    cerr << "iter = " << chokudai_iter << endl;
+    if (best_act.is_valid()){
       SearchState best = curr_search_states[output_depth].top();
+      
+      // assert(best.first_act.y == best_act.y);
+      // assert(best.first_act.x == best_act.x);
+      // assert(best.first_act.act_id == best_act.act_id);
+      //cerr << best_act.y << " " << best_act.x << " " << best_act.act_id << endl;
       //best.state.board.debug();
       //best.state.explosion_turn_board.debug();
       // cerr << (int)best.state.players[my_id].survival << " "
@@ -1308,6 +1333,12 @@ private:
   Timer game_timer;
   bool escape_mode;
   array<int8_t, GameRule::MAX_PLAYER_NUM> recover_bomb_cnt;
+
+
+  //game end
+
+  double best_score;
+  Act best_act;
   //----------------------------data----------------------------------------------
 
 };
