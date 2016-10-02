@@ -471,11 +471,6 @@ private:
         }
       }
     }
-
-
-
-
-
     
     int entities;
     cin >> entities;
@@ -562,7 +557,7 @@ private:
 	    continue;
 	  }
 	  int sum_box_point = external_player_info[i];
-	  if (sum_box_point + box_cnt > my_sum_box_point){
+	  if (sum_box_point + box_cnt >= my_sum_box_point){
 	    update_escape_mode = false;
 	    break;
 	  }
