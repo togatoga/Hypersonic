@@ -21,7 +21,7 @@ using namespace std;
 */
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
-const int DX[] = {1, 0, -1, 0, 0}, DY[] = {0, -1, 0, 1, 0};
+const int8_t DX[] = {1, 0, -1, 0, 0}, DY[] = {0, -1, 0, 1, 0};
 
 class Timer {
 public:
@@ -38,12 +38,8 @@ private:
   }
 };
 
-const int64_t BIT_POW[14] = {1,           8,           64,         512,
-                             4096,        32768,       262144,     2097152,
-                             16777216,    134217728,   1073741824, 8589934592,
-                             68719476736, 549755813888};
 
-const int SHIFT_WIDTH[13] = {0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48};
+const int8_t SHIFT_WIDTH[13] = {0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48};
 const int64_t WIDTH_BIT[13] = {
     0b1111,
     0b11110000,
@@ -64,14 +60,14 @@ class BitBoard {
 public:
   BitBoard() { memset(array, 0, sizeof(array)); }
   inline int get(int y, int x) const {
-    assert(0 <= y and y < 11);
-    assert(0 <= x and x < 13);
+    // assert(0 <= y and y < 11);
+    // assert(0 <= x and x < 13);
     return (array[y] >> SHIFT_WIDTH[x]) & WIDTH_BIT[0];
   }
   inline void set(int y, int x, int kind) {
-    assert(0 <= y and y < 11);
-    assert(0 <= x and x < 13);
-    assert(0 <= kind and kind < 9);
+    // assert(0 <= y and y < 11);
+    // assert(0 <= x and x < 13);
+    // assert(0 <= kind and kind < 9);
     // clear bit
     array[y] = (array[y] & (~WIDTH_BIT[x])) | ((int64_t)kind << SHIFT_WIDTH[x]);
   }
@@ -104,7 +100,6 @@ public:
       array[y] = 0;
     }
   }
-
   
 private:
   int64_t array[11];
@@ -131,12 +126,12 @@ public:
     return head == 0;
   }
   inline void push_back(const T & value) {
-    assert(0<= head and head < limit);
+    //assert(0<= head and head < limit);
     data[head] = value;
     head++;
   }
   template<class... TyArgs> inline void emplace_back(TyArgs&&... args) {
-    assert(0<= head and head < limit);
+    //assert(0<= head and head < limit);
     ::new(&data[head])T(forward<TyArgs>(args)...);
     head++;
   }
@@ -144,7 +139,7 @@ public:
     return  head;
   }
   inline void resize(int n){
-    assert(0 <= n and n <= limit);
+    //assert(0 <= n and n <= limit);
     head = n;
   }
   inline T* begin(){
@@ -161,11 +156,11 @@ public:
     return data.begin() + head;
   }
   inline  T &operator[](int i){
-    assert(0 <= i and i < head);
+    //assert(0 <= i and i < head);
     return data[i];
   }
   inline const T &operator[](int i) const {
-    assert(0 <= i and i < head);
+    //assert(0 <= i and i < head);
     return data[i];
   }
   
@@ -255,7 +250,7 @@ public:
 
     int width, height, myid;
     cin >> width >> height >> myid;
-    assert(width == BOARD_WIDTH and height == BOARD_HEIGHT);
+    //assert(width == BOARD_WIDTH and height == BOARD_HEIGHT);
     cin.ignore();
     //-----------------------------init------------------------------------------
     my_id = myid;
@@ -266,10 +261,10 @@ public:
     game_player_num = -1;
     curr_player_num = 0;
     escape_mode = false;
-    placed_bomb = false;
+    //placed_bomb = false;
     //-----------------------------init------------------------------------------
     while (true) {
-      StateInfo input_info = input(true);
+      StateInfo input_info = input(false);
       if (my_id == -1)
         break;
       game_timer.start();
@@ -290,7 +285,7 @@ private:
           explosion_range(explosion_range) {}
     bool is_explode() const { return explosion_turn <= 0; }
     void dec_turn() {
-      assert(explosion_range > 0);
+      //assert(explosion_range > 0);
       explosion_turn--;
     }
     inline bool operator != (const Bomb &right) const {
@@ -400,14 +395,14 @@ private:
   };
 
   struct Act {
-    int y, x;
-    int act_id;
+    int8_t y, x;
+    int8_t act_id;
     Act() {
       y = -1;
       x = -1;
       act_id = -1;
     }
-    Act(int y, int x, int act_id) : y(y), x(x), act_id(act_id) {}
+    Act(int8_t y, int8_t x, int8_t act_id) : y(y), x(x), act_id(act_id) {}
     bool operator<(const Act &right) const {
       if (y != right.y) {
         return y < right.y;
@@ -440,10 +435,13 @@ private:
       res.board.clear();
       res.explosion_turn_board.clear();
     }
+    if (verbose){
     cerr << "----------------------------Input "
             "Start------------------------------"
          << endl;
     cerr << BOARD_WIDTH << " " << BOARD_HEIGHT << " " << my_id << endl;
+
+    }
     int box_cnt = 0;
     for (int i = 0; i < BOARD_HEIGHT; i++) {
       string row;
@@ -511,10 +509,10 @@ private:
             external_player_info[owner];          // later update
         res.players[owner].max_bomb_cnt = param1; // later update
 	//res.players[owner].remain_bomb_cnt = param1;
-        if (owner == my_id) {
-          assert(next_pos.first == -1 or
-                 (next_pos.first == y and next_pos.second == x));
-        }
+        // if (owner == my_id) {
+        //   assert(next_pos.first == -1 or
+        //          (next_pos.first == y and next_pos.second == x));
+        // }
 	curr_player_num++;
       } else if (entityType == EntityType::BOMB) { // Bomb
 	//param1 remain turn
@@ -542,10 +540,11 @@ private:
       res.board.debug();
       res.explosion_turn_board.debug();
     }
-
+    if (verbose){
     cerr
         << "----------------------------Input End------------------------------"
         << endl;
+    }
     if (game_player_num == -1){
       game_player_num = curr_player_num;
     }
@@ -575,10 +574,10 @@ private:
     }
       
 
-    if (placed_bomb){
-      int cell = res.board.get(placed_pos.first, placed_pos.second);
-      assert(cell == CellType::BOMB_CELL);
-    }
+    //if (placed_bomb){
+    //      int cell = res.board.get(placed_pos.first, placed_pos.second);
+      //assert(cell == CellType::BOMB_CELL);
+    //    }
     return res;
   }
 
@@ -642,7 +641,7 @@ private:
     int py = exploded_key.first;
     int cell_type = board.get(py, px);
 
-    assert(in_board(py, px));
+    //assert(in_board(py, px));
     board.set(py, px, CellType::BOMB_EXPLODED_CELL);
 
     int range = mp_explosion_range[make_pair(py, px)];
@@ -738,9 +737,9 @@ private:
                 player_x = state.players[player_id].x;
                 if ((ny == player_y and nx == player_x)) {
                   state.players[player_id].survival = false;
-		  if (player_id == my_id){
-		    cerr << "id " << player_id << " "  << py << " " << px << endl;
-		  }
+		  // if (player_id == my_id){
+		  //   cerr << "id " << player_id << " "  << py << " " << px << endl;
+		  // }
                 }
               }
             }
@@ -1061,7 +1060,7 @@ private:
       
       if (place_bomb) {
         next_state.state.board.set(py, px, CellType::BOMB_CELL);
-	int pre_cell = base_board.get(py, px);
+	const int8_t pre_cell = base_board.get(py, px);
 	base_board.set(py, px, CellType::BOMB_CELL);
 	if (is_surrouned_bombs(py, px, base_board)){
 	  continue;
@@ -1112,7 +1111,7 @@ private:
       const int y = bombs[i].y;
       const int range = bombs[i].explosion_range;
       const int explosion_turn = bombs[i].explosion_turn;
-      assert(explosion_turn > 0);
+      //assert(explosion_turn > 0);
       explosion_turn_board.set(y, x, explosion_turn);
       
     }
@@ -1123,7 +1122,7 @@ private:
       const int y = bombs[i].y;
       const int range = bombs[i].explosion_range;
       const int cell_explosion_turn = explosion_turn_board.get(y, x);
-      assert(cell_explosion_turn > 0);
+      //assert(cell_explosion_turn > 0);
       bombs[i].explosion_turn = cell_explosion_turn;
       //bombs[i].explosion_turn -= 1;
       for (int dir = 0; dir < 4; dir++){
@@ -1151,7 +1150,7 @@ private:
       const int y = bombs[i].y;
       const int range = bombs[i].explosion_range;
       const int cell_explosion_turn = explosion_turn_board.get(y, x);
-      assert(cell_explosion_turn > 0);
+      //assert(cell_explosion_turn > 0);
       //update
       bombs[i].explosion_turn = cell_explosion_turn;
       explosion_turn_board.set(y, x, cell_explosion_turn);
@@ -1181,7 +1180,7 @@ private:
       if (init_search_state.state.players[i].is_dead())continue;
       init_search_state.state.players[i].sum_box_point = external_player_info[i];
     }
-    debug_players_info(init_search_state.state.players);
+    //debug_players_info(init_search_state.state.players);
     curr_search_states[0].emplace(init_search_state);
     Act tmp_best_act;
     pair<int, double> tmp_best(0, 0);
@@ -1244,36 +1243,26 @@ private:
     // cerr << prune_cnt << endl;
     // cerr << curr_search_states[depth_limit].size() << endl;
     cerr << chokudai_iter++ << " " << (int)output_depth << endl;
-    placed_bomb = false;
+    //placed_bomb = false;
     if (not curr_search_states[output_depth].empty() and
         curr_search_states[output_depth].top().score > 0) {
       SearchState best = curr_search_states[output_depth].top();
       //best.state.board.debug();
       //best.state.explosion_turn_board.debug();
-      cerr << (int)best.state.players[my_id].survival << " "
-           << (int)best.state.players[my_id].sum_box_point << " "
-           << (int)best.state.players[my_id].max_bomb_cnt << " "
-           << (int)best.state.players[my_id].explosion_range << " " << best.score
-           << endl;
+      // cerr << (int)best.state.players[my_id].survival << " "
+      //      << (int)best.state.players[my_id].sum_box_point << " "
+      //      << (int)best.state.players[my_id].max_bomb_cnt << " "
+      //      << (int)best.state.players[my_id].explosion_range << " " << best.score
+      //      << endl;
       output_act_by_cho_search(best.first_act, chokudai_iter);
       next_pos = make_pair(best.first_act.y, best.first_act.x);
-      if (best.first_act.act_id == ACT_BOMB){
-	placed_bomb = true;
-	int x = init_info.players[my_id].x;
-	int y = init_info.players[my_id].y;
-	placed_pos = make_pair(y, x);
-      }
+      
     } else {
       cerr << "temp action" << endl;
       output_act_by_cho_search(tmp_best_act, chokudai_iter);
       
       next_pos = make_pair(tmp_best_act.y, tmp_best_act.x);
-      if (tmp_best_act.act_id == ACT_BOMB){
-	placed_bomb = true;
-	int x = init_info.players[my_id].x;
-	int y = init_info.players[my_id].y;
-	placed_pos = make_pair(y, x);
-      }
+      
     }
 
   }
@@ -1314,7 +1303,7 @@ private:
   //----------------------------data----------------------------------------------
   // dubug
   pair<int, int> placed_pos;
-  bool placed_bomb;
+  //bool placed_bomb;
   pair<int, int> next_pos;
   
   int my_id;
@@ -1330,7 +1319,7 @@ private:
 
 int main() {
   cin.tie(0);
-  ios::sync_with_stdio(false);
+  ios::sync_with_stdio(true);
  
   Solver solver;
   solver.solve();
